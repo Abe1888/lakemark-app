@@ -34,7 +34,7 @@ class StaffAuthClient(
     private val dbProvider: () -> FirebaseFirestore = { Firebase.firestore },
 ) {
     suspend fun signInStaff(username: String, password: String): Result<StaffSignInResult> {
-        val cleanUser = username.trim().lowercase().removePrefix("@")
+        val cleanUser = normalizeUsername(username)
         if (!USERNAME_REGEX.matches(cleanUser)) {
             return Result.failure(
                 IllegalArgumentException("Enter a valid staff username (3-32 letters, numbers, ., _, -)."),
@@ -97,8 +97,11 @@ class StaffAuthClient(
         const val STAFF_EMAIL_DOMAIN = "staff.lakemark.local"
         private val USERNAME_REGEX = Regex("^[a-z0-9._-]{3,32}$")
 
+        fun normalizeUsername(username: String): String =
+            username.trim().trimStart('@').trim().lowercase()
+
         fun staffEmailFor(username: String): String {
-            val clean = username.trim().lowercase().removePrefix("@")
+            val clean = normalizeUsername(username)
             return "$clean@$STAFF_EMAIL_DOMAIN"
         }
 

@@ -62,55 +62,67 @@ class LakemarkRepository(
         appContext = context.applicationContext,
     )
 
-    private fun getOrInitProvisionerAuth(): FirebaseAuth? {
-        val ctx = appContext ?: return null
-        return runCatching {
-            val app = try {
-                FirebaseApp.getInstance("staffProvisioner")
-            } catch (_: IllegalStateException) {
-                val defaultApp = FirebaseApp.getInstance()
-                FirebaseApp.initializeApp(ctx, defaultApp.options, "staffProvisioner")
-            }
-            FirebaseAuth.getInstance(app)
-        }.getOrNull()
+    private fun getOrInitProvisionerAuth(): FirebaseAuth {
+        val ctx = appContext
+            ?: throw IllegalStateException("Application context is required to provision staff logins.")
+        val app = try {
+            FirebaseApp.getInstance("staffProvisioner")
+        } catch (_: IllegalStateException) {
+            val defaultApp = FirebaseApp.getInstance()
+            FirebaseApp.initializeApp(ctx, defaultApp.options, "staffProvisioner")
+        }
+        return FirebaseAuth.getInstance(app)
     }
 
     private suspend fun provisionStaffAuthAccount(
         username: String,
         password: String,
         previousPassword: String? = null,
-    ): String? {
-        val provisionerAuth = getOrInitProvisionerAuth() ?: return null
+    ): Result<String> {
         val email = StaffAuthClient.staffEmailFor(username)
         return try {
+            val provisionerAuth = getOrInitProvisionerAuth()
             try {
-                provisionerAuth.createUserWithEmailAndPassword(email, password).await().user?.uid
-            } catch (_: FirebaseAuthUserCollisionException) {
+                val uid = provisionerAuth.createUserWithEmailAndPassword(email, password).await().user?.uid
+                    ?: return Result.failure(IllegalStateException("Firebase Auth did not return a user ID for $email."))
+                Result.success(uid)
+            } catch (collision: FirebaseAuthUserCollisionException) {
                 val signedIn = runCatching {
                     provisionerAuth.signInWithEmailAndPassword(email, password).await().user
                 }.getOrNull()
                 if (signedIn != null) {
-                    signedIn.uid
+                    Result.success(signedIn.uid)
                 } else if (!previousPassword.isNullOrBlank() && previousPassword != password) {
-                    runCatching {
-                        val oldUser = provisionerAuth.signInWithEmailAndPassword(email, previousPassword).await().user
-                        if (oldUser != null) {
-                            oldUser.updatePassword(password).await()
-                            oldUser.uid
-                        } else {
-                            null
-                        }
+                    val oldUser = runCatching {
+                        provisionerAuth.signInWithEmailAndPassword(email, previousPassword).await().user
                     }.getOrNull()
+                    if (oldUser != null) {
+                        oldUser.updatePassword(password).await()
+                        Result.success(oldUser.uid)
+                    } else {
+                        Result.failure(
+                            IllegalStateException(
+                                "Staff login for $username already exists with a different password.",
+                                collision,
+                            ),
+                        )
+                    }
                 } else {
-                    null
+                    Result.failure(
+                        IllegalStateException(
+                            "Staff login for $username already exists with a different password.",
+                            collision,
+                        ),
+                    )
                 }
+            } finally {
+                runCatching { getOrInitProvisionerAuth().signOut() }
             }
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
-            null
-        } finally {
-            runCatching { provisionerAuth.signOut() }
+        } catch (e: Exception) {
+            android.util.Log.e("LakemarkAuth", "Failed to provision staff auth for $email", e)
+            Result.failure(IllegalStateException(StaffAuthClient.mapFirebaseAuthException(e), e))
         }
     }
 
@@ -728,7 +740,7 @@ class LakemarkRepository(
                 val targetUid = provisionStaffAuthAccount(
                     username = staff.username,
                     password = staff.initialPassword,
-                ) ?: staff.uid
+                ).getOrThrow()
                 val hashed = StaffPasswordHasher.hashPassword(staff.initialPassword)
                 val now = FieldValue.serverTimestamp()
                 batch.set(
@@ -792,29 +804,46 @@ class LakemarkRepository(
             requireUserId()
             val usersSnap = db.collection(path).get().await()
             val existingIds = usersSnap.documents.map { it.id }.toSet()
+            val staffRoles = setOf(
+                UserRole.RECEPTION.key,
+                UserRole.KITCHEN.key,
+                UserRole.WAITER.key,
+                UserRole.CASHIER.key,
+                UserRole.DELIVERY.key,
+            )
+            val rosterByUsername = DefaultStaffRoster.accounts.associateBy {
+                StaffAuthClient.normalizeUsername(it.username)
+            }
             val staffDocs = usersSnap.documents.filter { doc ->
                 val roleKey = doc.getString("role")?.lowercase().orEmpty()
-                val username = doc.getString("username").orEmpty().trim().lowercase()
-                val staffPassword = doc.getString("staffPassword").orEmpty()
-                roleKey in setOf(
-                    UserRole.RECEPTION.key,
-                    UserRole.KITCHEN.key,
-                    UserRole.WAITER.key,
-                    UserRole.CASHIER.key,
-                    UserRole.DELIVERY.key,
-                ) && username.isNotBlank() && staffPassword.length >= 6
+                val username = StaffAuthClient.normalizeUsername(doc.getString("username").orEmpty())
+                roleKey in staffRoles && username.isNotBlank()
             }
             var synced = 0
+            var firstError: Throwable? = null
             for (doc in staffDocs) {
-                val username = doc.getString("username").orEmpty().trim().lowercase()
-                val staffPassword = doc.getString("staffPassword").orEmpty()
-                val authUid = provisionStaffAuthAccount(username, staffPassword) ?: continue
+                val username = StaffAuthClient.normalizeUsername(doc.getString("username").orEmpty())
+                val storedPassword = doc.getString("staffPassword").orEmpty()
+                val rosterMatch = rosterByUsername[username]
+                val effectivePassword = if (storedPassword.length >= 6) {
+                    storedPassword
+                } else {
+                    rosterMatch?.initialPassword.orEmpty()
+                }
+                if (effectivePassword.length < 6) continue
+
+                val provisionResult = provisionStaffAuthAccount(username, effectivePassword)
+                val authUid = provisionResult.getOrNull()
+                if (authUid == null) {
+                    if (firstError == null) firstError = provisionResult.exceptionOrNull()
+                    continue
+                }
                 if (authUid !in existingIds && authUid != doc.id) {
                     val now = FieldValue.serverTimestamp()
                     val roleKey = doc.getString("role").orEmpty()
-                    val name = doc.getString("name").orEmpty()
+                    val name = doc.getString("name").orEmpty().ifBlank { rosterMatch?.name.orEmpty() }
                     val active = doc.getBoolean("active") ?: true
-                    val hashed = StaffPasswordHasher.hashPassword(staffPassword)
+                    val hashed = StaffPasswordHasher.hashPassword(effectivePassword)
                     val batch = db.batch()
                     batch.set(
                         db.collection("users").document(authUid),
@@ -822,7 +851,7 @@ class LakemarkRepository(
                             "userId" to authUid,
                             "email" to StaffAuthClient.staffEmailFor(username),
                             "username" to username,
-                            "staffPassword" to staffPassword,
+                            "staffPassword" to effectivePassword,
                             "name" to name,
                             "role" to roleKey,
                             "active" to active,
@@ -851,16 +880,28 @@ class LakemarkRepository(
                                 "userId" to authUid,
                                 "waiterName" to name,
                                 "onDuty" to active,
-                                "areas" to listOf(WaiterArea.F1.key),
+                                "areas" to (rosterMatch?.waiterAreas ?: listOf(WaiterArea.F1.key)),
                                 "updatedAt" to now,
                             ),
                         )
                     }
                     batch.commit().await()
                     synced++
+                } else if (storedPassword.length < 6) {
+                    db.collection("users").document(authUid).update(
+                        mapOf(
+                            "staffPassword" to effectivePassword,
+                            "updatedAt" to FieldValue.serverTimestamp(),
+                        ),
+                    ).await()
+                    synced++
                 }
             }
-            Result.success(synced)
+            if (firstError != null && synced == 0) {
+                Result.failure(firstError)
+            } else {
+                Result.success(synced)
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -898,9 +939,7 @@ class LakemarkRepository(
                 .await()
             require(existingWithUsername.isEmpty) { "That username is already in use." }
 
-            val safePrefix = cleanUser.replace(Regex("[^a-z0-9_-]"), "_").trim('_').take(24).ifBlank { "member" }
-            val authUid = provisionStaffAuthAccount(cleanUser, password)
-            val staffUid = authUid ?: "staff_${safePrefix}_${UUID.randomUUID().toString().take(8)}"
+            val staffUid = provisionStaffAuthAccount(cleanUser, password).getOrThrow()
             path = "users/$staffUid"
 
             val hashed = StaffPasswordHasher.hashPassword(password)
@@ -1015,8 +1054,14 @@ class LakemarkRepository(
             }
 
             val effectiveUser = cleanUser.ifBlank { existingUsername }
+            val usernameChanged = existingUsername.isNotBlank() && effectiveUser != existingUsername
             if (newPassword.isNotEmpty()) {
                 require(effectiveUser.isNotBlank()) { "Enter a username before setting a staff password." }
+            }
+            if (usernameChanged && newPassword.isEmpty()) {
+                require(existingPassword.length >= 6) {
+                    "Enter a new password (6+ characters) when changing a staff username."
+                }
             }
             if (effectiveUser.isNotBlank()) {
                 val dupSnap = db.collection("users")
@@ -1047,7 +1092,12 @@ class LakemarkRepository(
                     username = effectiveUser,
                     password = newPassword,
                     previousPassword = existingPassword,
-                )
+                ).getOrThrow()
+            } else if (usernameChanged) {
+                provisionStaffAuthAccount(
+                    username = effectiveUser,
+                    password = existingPassword,
+                ).getOrThrow()
             }
             userRef.update(userUpdates).await()
 
@@ -1156,7 +1206,7 @@ class LakemarkRepository(
                 username = username,
                 password = newPassword,
                 previousPassword = existingPassword,
-            )
+            ).getOrThrow()
             val hashed = StaffPasswordHasher.hashPassword(newPassword)
             val now = FieldValue.serverTimestamp()
             db.collection("users").document(targetUserId).update(

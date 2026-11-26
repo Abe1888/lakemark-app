@@ -639,8 +639,16 @@ class LakemarkViewModel(
                 .onSuccess { user ->
                     if (user.userRole == UserRole.MANAGER || initialRole == UserRole.MANAGER) {
                         repository.seedDefaultMenuIfEmpty()
-                        repository.seedDefaultStaffIfEmpty()
-                        repository.syncExistingStaffAuthAccounts()
+                        val seedRes = repository.seedDefaultStaffIfEmpty()
+                        val syncRes = repository.syncExistingStaffAuthAccounts()
+                        val authError = seedRes.exceptionOrNull() ?: syncRes.exceptionOrNull()
+                        if (authError != null) {
+                            showToast(
+                                authError.localizedMessage ?: "Could not sync staff logins to Firebase Auth.",
+                            )
+                        } else if ((seedRes.getOrNull() ?: 0) > 0 || (syncRes.getOrNull() ?: 0) > 0) {
+                            showToast("Staff logins synced and ready for sign-in.")
+                        }
                     }
                 }
                 .onFailure { err ->
@@ -1185,6 +1193,7 @@ class LakemarkViewModel(
     }
 
     fun selectTab(tab: AppTab) {
+        if (tab !in uiState.value.activeRole.allowedTabs) return
         _localUi.update { it.copy(currentTab = tab) }
     }
 
@@ -1526,7 +1535,7 @@ class LakemarkViewModel(
     }
 
     fun toggleStaffAccountActive(user: StaffUser) {
-        if (user.userRole == UserRole.MANAGER || uiState.value.isGoogleCustomerSession) return
+        if (!uiState.value.isAdminUser || user.userRole == UserRole.MANAGER) return
         if (user.userRole == UserRole.CUSTOMER && user.active && user.permanentlyActivated) {
             showToast("Customer accounts stay permanently active once approved")
             return

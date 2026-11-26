@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Lakemark</string>
+    <string name="default_notification_channel_id">lakemark_kitchen_alerts_v2</string>
+    <string name="channel_kitchen_name">Kitchen &amp; Order Alerts</string>
+    <string name="channel_kitchen_desc">New kitchen tickets, preparation updates, and urgent order notifications.</string>
+    <string name="channel_ready_name">Order Ready &amp; Pickup Alerts</string>
+    <string name="channel_ready_desc">Real-time alerts when orders are ready for service, pickup, or delivery.</string>
+    <string name="channel_broadcast_name">Staff Broadcasts</string>
+    <string name="channel_broadcast_desc">Announcements and station messages sent by Lakemark management.</string>
+    <string name="notif_action_view_order">View order</string>
+    <string name="notif_action_open_alerts">Open alerts</string>
+    <string name="notif_action_update">Update Now</string>
+</resources>

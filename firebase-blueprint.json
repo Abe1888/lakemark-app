@@ -1,0 +1,265 @@
+{
+  "entities": {
+    "StaffUser": {
+      "title": "StaffUser",
+      "description": "Authenticated Lakemark user profile with RBAC role and account status.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the user." },
+        "email": { "type": "string", "description": "Google account email or staff local email address." },
+        "username": { "type": "string", "description": "Optional app-managed staff username." },
+        "name": { "type": "string", "description": "Display name." },
+        "photoUrl": { "type": "string", "description": "Firebase Storage download URL for profile photo." },
+        "role": {
+          "type": "string",
+          "enum": ["manager", "reception", "kitchen", "waiter", "cashier", "delivery", "customer"],
+          "description": "Assigned Lakemark role."
+        },
+        "active": { "type": "boolean", "description": "Whether the staff or customer account is enabled." },
+        "permanentlyActivated": { "type": "boolean", "description": "Whether customer account has been permanently activated by a Manager." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["userId", "email", "name", "role", "active", "createdAt", "updatedAt"]
+    },
+    "MenuItem": {
+      "title": "MenuItem",
+      "description": "Lakemark restaurant and room service menu dish.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Dish name." },
+        "category": {
+          "type": "string",
+          "enum": ["Classics", "Lake Tana", "Grill", "Breakfast", "Drinks"],
+          "description": "Menu category."
+        },
+        "description": { "type": "string", "description": "Short dish description." },
+        "price": { "type": "integer", "description": "Unit price in ETB." },
+        "available": { "type": "boolean", "description": "Whether dish is currently available." },
+        "sortOrder": { "type": "integer", "description": "Menu display ordering index." },
+        "imageUrl": { "type": "string", "description": "Optional Firebase Storage download URL for dish photo." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["name", "category", "description", "price", "available", "sortOrder", "createdAt", "updatedAt"]
+    },
+    "SavedMenuItem": {
+      "title": "SavedMenuItem",
+      "description": "User-bookmarked menu dish for quick revisit.",
+      "type": "object",
+      "properties": {
+        "menuItemId": { "type": "string", "description": "ID of bookmarked MenuItem." },
+        "name": { "type": "string", "description": "Cached dish name." },
+        "category": { "type": "string", "enum": ["Classics", "Lake Tana", "Grill", "Breakfast", "Drinks"] },
+        "price": { "type": "integer", "description": "Unit price in ETB." },
+        "imageUrl": { "type": "string", "description": "Optional dish image URL." },
+        "savedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["menuItemId", "name", "category", "price", "savedAt"]
+    },
+    "TranslationEntry": {
+      "title": "TranslationEntry",
+      "description": "Manager-approved English/Amharic translation override synchronized across all clients.",
+      "type": "object",
+      "properties": {
+        "key": { "type": "string", "description": "Canonical snake_case translation key." },
+        "category": { "type": "string", "description": "UI module category (e.g. navigation, auth, orders, manage, profile)." },
+        "en": { "type": "string", "description": "English source string." },
+        "am": { "type": "string", "description": "Amharic translation string." },
+        "enVersion": { "type": "integer", "description": "Source English string revision used to detect outdated translations." },
+        "updatedBy": { "type": "string", "description": "Firebase Auth UID of the approving Manager." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["key", "category", "en", "am", "enVersion", "updatedBy", "updatedAt"]
+    },
+    "ReleaseConfig": {
+      "title": "ReleaseConfig",
+      "description": "App release metadata and APK download announcement config.",
+      "type": "object",
+      "properties": {
+        "latestVersionCode": { "type": "integer" },
+        "latestVersionName": { "type": "string" },
+        "apkDownloadUrl": { "type": "string" },
+        "releaseNotes": { "type": "string" },
+        "mandatory": { "type": "boolean" },
+        "updatedBy": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["latestVersionCode", "latestVersionName", "apkDownloadUrl", "releaseNotes", "mandatory", "updatedBy", "updatedAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Kitchen, room service, restaurant, reception, or takeaway order.",
+      "type": "object",
+      "properties": {
+        "orderNumber": { "type": "integer", "description": "Sequential human-readable ticket number." },
+        "userId": { "type": "string", "description": "Creator Firebase Auth UID." },
+        "createdByRole": {
+          "type": "string",
+          "enum": ["manager", "reception", "kitchen", "waiter", "cashier", "delivery", "customer"]
+        },
+        "lastUpdatedByRole": {
+          "type": "string",
+          "enum": ["manager", "reception", "kitchen", "waiter", "cashier", "delivery", "customer"]
+        },
+        "lastUpdatedByUid": { "type": "string" },
+        "customerName": { "type": "string" },
+        "orderType": { "type": "string", "enum": ["room", "dine", "pickup", "out"] },
+        "location": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["new", "confirmed", "preparing", "ready", "done", "cancelled"]
+        },
+        "items": { "type": "array", "description": "Bounded list of ordered dish maps." },
+        "specialNote": { "type": "string" },
+        "cancelReason": { "type": "string" },
+        "assignedWaiterId": { "type": "string" },
+        "assignedMethod": { "type": "string", "enum": ["", "auto", "manual"] },
+        "subtotal": { "type": "integer" },
+        "total": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." },
+        "confirmedAt": { "type": "string", "format": "date-time", "description": "Server timestamp when confirmed." },
+        "preparingAt": { "type": "string", "format": "date-time", "description": "Server timestamp when preparing." },
+        "readyAt": { "type": "string", "format": "date-time", "description": "Server timestamp when ready." },
+        "doneAt": { "type": "string", "format": "date-time", "description": "Server timestamp when completed." },
+        "cancelledAt": { "type": "string", "format": "date-time", "description": "Server timestamp when cancelled." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": [
+        "orderNumber", "userId", "createdByRole", "lastUpdatedByRole", "lastUpdatedByUid",
+        "customerName", "orderType", "location", "status", "items", "specialNote", "cancelReason",
+        "subtotal", "total", "createdAt", "updatedAt"
+      ]
+    },
+    "BrandConfig": {
+      "title": "BrandConfig",
+      "description": "Per-role 60/30/10 brand theme and notification identity.",
+      "type": "object",
+      "properties": {
+        "roleKey": {
+          "type": "string",
+          "enum": ["manager", "reception", "kitchen", "waiter", "cashier", "delivery", "customer"]
+        },
+        "primaryHex": { "type": "string" },
+        "secondaryHex": { "type": "string" },
+        "accentHex": { "type": "string" },
+        "brandName": { "type": "string" },
+        "mark": { "type": "string" },
+        "updatedBy": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["roleKey", "primaryHex", "secondaryHex", "accentHex", "brandName", "mark", "updatedBy", "updatedAt"]
+    },
+    "AppNotification": {
+      "title": "AppNotification",
+      "description": "Real-time order status alert, manager staff broadcast, or app update notice.",
+      "type": "object",
+      "properties": {
+        "senderUid": { "type": "string" },
+        "senderRole": {
+          "type": "string",
+          "enum": ["manager", "reception", "kitchen", "waiter", "cashier", "delivery", "customer"]
+        },
+        "senderBrandName": { "type": "string" },
+        "message": { "type": "string" },
+        "targetRoles": { "type": "array" },
+        "targetUserId": { "type": "string" },
+        "orderId": { "type": "string" },
+        "kind": { "type": "string", "enum": ["new", "ready", "ping", "broadcast", "app_update"] },
+        "apkUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["senderUid", "senderRole", "senderBrandName", "message", "targetRoles", "targetUserId", "orderId", "kind", "createdAt"]
+    },
+    "OrderCounter": {
+      "title": "OrderCounter",
+      "description": "Atomic sequential order counter.",
+      "type": "object",
+      "properties": {
+        "nextOrderNumber": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["nextOrderNumber", "updatedAt"]
+    },
+    "FcmDeviceToken": {
+      "title": "FcmDeviceToken",
+      "description": "Registered Firebase Cloud Messaging token and role routing metadata for a user's Android device.",
+      "type": "object",
+      "properties": {
+        "token": { "type": "string", "description": "FCM registration token." },
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "deviceId": { "type": "string", "description": "Stable app-scoped device installation ID." },
+        "role": {
+          "type": "string",
+          "enum": ["manager", "reception", "kitchen", "waiter", "cashier", "delivery", "customer"],
+          "description": "Active role bound to this device session."
+        },
+        "platform": { "type": "string", "description": "Client platform (android)." },
+        "appVersion": { "type": "string", "description": "Client application version." },
+        "notificationsEnabled": { "type": "boolean", "description": "Whether OS notification permission is granted." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["token", "userId", "deviceId", "role", "platform", "appVersion", "notificationsEnabled", "createdAt", "updatedAt"]
+    },
+    "WaiterCoverage": {
+      "title": "WaiterCoverage",
+      "description": "Real-time waiter duty state and assigned hotel/dining floor areas.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the waiter." },
+        "waiterName": { "type": "string", "description": "Display name of the waiter." },
+        "onDuty": { "type": "boolean", "description": "Whether waiter is currently on shift." },
+        "areas": { "type": "array", "description": "Assigned areas: din, lob, f1, f2." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["userId", "waiterName", "onDuty", "areas", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/StaffUser" },
+      "description": "Authenticated user profiles and role assignments."
+    },
+    "/users/{userId}/fcm_tokens/{deviceId}": {
+      "schema": { "$ref": "#/entities/FcmDeviceToken" },
+      "description": "Registered FCM device tokens for real-time role-routed push notifications."
+    },
+    "/users/{userId}/saved_items/{itemId}": {
+      "schema": { "$ref": "#/entities/SavedMenuItem" },
+      "description": "Bookmarked favorite menu dishes per user."
+    },
+    "/menu_items/{itemId}": {
+      "schema": { "$ref": "#/entities/MenuItem" },
+      "description": "Lakemark food and drink menu catalog."
+    },
+    "/translations/{transKey}": {
+      "schema": { "$ref": "#/entities/TranslationEntry" },
+      "description": "Manager-approved EN/AM translation overrides."
+    },
+    "/app_config/{configId}": {
+      "schema": { "$ref": "#/entities/ReleaseConfig" },
+      "description": "Application release update metadata."
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Kitchen, room, restaurant, reception, and takeaway orders."
+    },
+    "/brands/{roleKey}": {
+      "schema": { "$ref": "#/entities/BrandConfig" },
+      "description": "Customizable 60/30/10 brand configurations per role."
+    },
+    "/notifications/{notifId}": {
+      "schema": { "$ref": "#/entities/AppNotification" },
+      "description": "Real-time kitchen alerts, staff broadcasts, and app update notices."
+    },
+    "/counters/{counterId}": {
+      "schema": { "$ref": "#/entities/OrderCounter" },
+      "description": "Atomic sequential order ticket counter."
+    },
+    "/waiter_coverage/{waiterId}": {
+      "schema": { "$ref": "#/entities/WaiterCoverage" },
+      "description": "Real-time waiter duty toggles and floor zone coverage."
+    }
+  }
+}

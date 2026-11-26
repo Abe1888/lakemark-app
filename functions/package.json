@@ -1,0 +1,16 @@
+{
+  "name": "lakemark-fcm-functions",
+  "version": "1.1.0",
+  "description": "Lakemark Firebase Cloud Functions v2 for staff auth & FCM push dispatch.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test *.test.js"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^6.0.0"
+  }
+}

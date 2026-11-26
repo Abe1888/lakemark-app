@@ -1,0 +1,490 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidRoleKey(role) {
+      return role in ['manager', 'reception', 'kitchen', 'waiter', 'cashier', 'delivery', 'customer'];
+    }
+
+    function isAllowedStaffRole(role) {
+      return role in ['reception', 'kitchen', 'waiter', 'cashier', 'delivery'];
+    }
+
+    function isValidUsername(username) {
+      return username is string && username.matches('^[a-z0-9._-]{3,32}$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email_verified == true && request.auth.token.email in ['abebaw4040@gmail.com']) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function callerUserPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function isActiveStaff() {
+      return isSignedIn() &&
+        exists(callerUserPath()) &&
+        get(callerUserPath()).data.active == true &&
+        get(callerUserPath()).data.role in ['manager', 'reception', 'kitchen', 'waiter', 'cashier', 'delivery'];
+    }
+
+    function isActiveManager() {
+      return isSignedIn() &&
+        exists(callerUserPath()) &&
+        get(callerUserPath()).data.active == true &&
+        get(callerUserPath()).data.role == 'manager';
+    }
+
+    function isActiveCustomer() {
+      return isSignedIn() &&
+        exists(callerUserPath()) &&
+        get(callerUserPath()).data.active == true &&
+        get(callerUserPath()).data.role == 'customer';
+    }
+
+    function isActivatedAccount() {
+      return isAdmin() || isActiveStaff() || isActiveCustomer();
+    }
+
+    function userRoleEquals(roleKey) {
+      return isSignedIn() &&
+        exists(callerUserPath()) &&
+        get(callerUserPath()).data.active == true &&
+        get(callerUserPath()).data.role == roleKey;
+    }
+
+    function isValidOptionalUrl(val) {
+      return val is string && val.size() <= 1000;
+    }
+
+    function isValidUser(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+        data.email is string && data.email.size() >= 1 && data.email.size() <= 120 &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 60 &&
+        data.role is string && isValidRoleKey(data.role) &&
+        data.active is bool &&
+        (!('permanentlyActivated' in data) || data.permanentlyActivated is bool) &&
+        (!('username' in data) || (data.username is string && data.username.size() <= 40)) &&
+        (!('staffPassword' in data) || (data.staffPassword is string && data.staffPassword.size() <= 128)) &&
+        (!('photoUrl' in data) || isValidOptionalUrl(data.photoUrl)) &&
+        data.createdAt is timestamp && data.createdAt <= request.time &&
+        data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidStaffCredentials(data, staffId) {
+      return data.userId == staffId &&
+        isValidUsername(data.username) &&
+        data.passwordHash is string && data.passwordHash.size() >= 64 && data.passwordHash.size() <= 256 &&
+        data.passwordSalt is string && data.passwordSalt.size() >= 16 && data.passwordSalt.size() <= 128 &&
+        data.role is string && isAllowedStaffRole(data.role) &&
+        (!('hashAlgo' in data) || data.hashAlgo in ['scrypt', 'pbkdf2_sha256']) &&
+        data.createdAt is timestamp && data.createdAt <= request.time &&
+        data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidMenuItem(data) {
+      return data.name is string && data.name.size() >= 1 && data.name.size() <= 60 &&
+        data.category in ['Classics', 'Lake Tana', 'Grill', 'Breakfast', 'Drinks'] &&
+        data.description is string && data.description.size() <= 200 &&
+        data.price is int && data.price >= 1 && data.price <= 100000 &&
+        data.available is bool &&
+        data.sortOrder is int && data.sortOrder >= 0 && data.sortOrder <= 1000 &&
+        (!('imageUrl' in data) || isValidOptionalUrl(data.imageUrl)) &&
+        data.createdAt is timestamp && data.createdAt <= request.time &&
+        data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidSavedItem(data) {
+      return data.menuItemId is string && isValidId(data.menuItemId) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 60 &&
+        data.category in ['Classics', 'Lake Tana', 'Grill', 'Breakfast', 'Drinks'] &&
+        data.price is int && data.price >= 1 && data.price <= 100000 &&
+        (!('imageUrl' in data) || isValidOptionalUrl(data.imageUrl)) &&
+        data.savedAt is timestamp && data.savedAt <= request.time;
+    }
+
+    function isValidTranslationEntry(data) {
+      return data.key is string && isValidId(data.key) &&
+        data.category is string && data.category.size() >= 1 && data.category.size() <= 40 &&
+        data.en is string && data.en.size() >= 1 && data.en.size() <= 400 &&
+        data.am is string && data.am.size() <= 500 &&
+        data.enVersion is int && data.enVersion >= 1 && data.enVersion <= 1000000 &&
+        data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 &&
+        data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidReleaseConfig(data) {
+      return data.latestVersionCode is int && data.latestVersionCode >= 1 && data.latestVersionCode <= 9999999 &&
+        data.latestVersionName is string && data.latestVersionName.size() >= 1 && data.latestVersionName.size() <= 32 &&
+        isValidOptionalUrl(data.apkDownloadUrl) &&
+        (!('apkSha256' in data) || (data.apkSha256 is string && data.apkSha256.size() <= 128)) &&
+        data.releaseNotes is string && data.releaseNotes.size() <= 400 &&
+        data.mandatory is bool &&
+        data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 &&
+        data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidOrder(data) {
+      return data.orderNumber is int && data.orderNumber >= 1 && data.orderNumber <= 9999999 &&
+        data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+        data.createdByRole is string && isValidRoleKey(data.createdByRole) &&
+        data.lastUpdatedByRole is string && isValidRoleKey(data.lastUpdatedByRole) &&
+        data.lastUpdatedByUid is string && data.lastUpdatedByUid.size() >= 1 && data.lastUpdatedByUid.size() <= 128 &&
+        data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 80 &&
+        data.orderType in ['room', 'dine', 'pickup', 'out'] &&
+        data.location is string && data.location.size() >= 1 && data.location.size() <= 80 &&
+        data.status in ['new', 'confirmed', 'preparing', 'ready', 'done', 'cancelled'] &&
+        data.items is list && data.items.size() >= 1 && data.items.size() <= 30 && data.items[0] is map &&
+        data.specialNote is string && data.specialNote.size() <= 200 &&
+        data.cancelReason is string && data.cancelReason.size() <= 200 &&
+        data.subtotal is int && data.subtotal >= 0 && data.subtotal <= 10000000 &&
+        data.total is int && data.total >= 0 && data.total <= 11500000 &&
+        (!('assignedWaiterId' in data) || (data.assignedWaiterId is string && data.assignedWaiterId.size() <= 128)) &&
+        (!('assignedMethod' in data) || data.assignedMethod in ['', 'auto', 'manual']) &&
+        data.createdAt is timestamp && data.createdAt <= request.time &&
+        data.updatedAt is timestamp && data.updatedAt <= request.time &&
+        (!('confirmedAt' in data) || (data.confirmedAt is timestamp && data.confirmedAt <= request.time)) &&
+        (!('preparingAt' in data) || (data.preparingAt is timestamp && data.preparingAt <= request.time)) &&
+        (!('readyAt' in data) || (data.readyAt is timestamp && data.readyAt <= request.time)) &&
+        (!('doneAt' in data) || (data.doneAt is timestamp && data.doneAt <= request.time)) &&
+        (!('cancelledAt' in data) || (data.cancelledAt is timestamp && data.cancelledAt <= request.time));
+    }
+
+    function isValidWaiterCoverage(data) {
+      return data.userId is string && isValidId(data.userId) &&
+        data.waiterName is string && data.waiterName.size() >= 1 && data.waiterName.size() <= 60 &&
+        data.onDuty is bool &&
+        data.areas is list && data.areas.size() <= 4 &&
+        data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidBrand(data) {
+      return data.roleKey is string && isValidRoleKey(data.roleKey) &&
+        data.primaryHex is string && data.primaryHex.matches('^#[0-9A-Fa-f]{6}$') &&
+        data.secondaryHex is string && data.secondaryHex.matches('^#[0-9A-Fa-f]{6}$') &&
+        data.accentHex is string && data.accentHex.matches('^#[0-9A-Fa-f]{6}$') &&
+        data.brandName is string && data.brandName.size() >= 1 && data.brandName.size() <= 18 &&
+        data.mark is string && data.mark.size() <= 2 &&
+        data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 &&
+        data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidNotification(data) {
+      return data.senderUid is string && data.senderUid.size() >= 1 && data.senderUid.size() <= 128 &&
+        data.senderRole is string && isValidRoleKey(data.senderRole) &&
+        data.senderBrandName is string && data.senderBrandName.size() >= 1 && data.senderBrandName.size() <= 30 &&
+        data.message is string && data.message.size() >= 1 && data.message.size() <= 300 &&
+        data.targetRoles is list && data.targetRoles.size() >= 1 && data.targetRoles.size() <= 8 && data.targetRoles[0] is string &&
+        data.targetUserId is string && data.targetUserId.size() <= 128 &&
+        data.orderId is string && data.orderId.size() <= 128 &&
+        data.kind in ['new', 'ready', 'ping', 'broadcast', 'app_update'] &&
+        (!('apkUrl' in data) || isValidOptionalUrl(data.apkUrl)) &&
+        data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidFcmToken(data) {
+      return data.token is string && data.token.size() >= 1 && data.token.size() <= 512 &&
+        data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+        data.deviceId is string && isValidId(data.deviceId) &&
+        data.role is string && isValidRoleKey(data.role) &&
+        data.platform is string && data.platform == 'android' &&
+        data.appVersion is string && data.appVersion.size() >= 1 && data.appVersion.size() <= 32 &&
+        data.notificationsEnabled is bool &&
+        data.createdAt is timestamp && data.createdAt <= request.time &&
+        data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && isValidId(adminId) && request.auth.uid == adminId;
+      allow list, create, update, delete: if false;
+    }
+
+    match /staff_credentials/{staffId} {
+      allow get, list: if false;
+      allow create: if isSignedIn() &&
+        isValidId(staffId) &&
+        (isAdmin() || isActiveManager()) &&
+        incoming().keys().hasAll(['userId', 'username', 'passwordHash', 'passwordSalt', 'role', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly(['userId', 'username', 'passwordHash', 'passwordSalt', 'hashAlgo', 'role', 'createdAt', 'updatedAt']) &&
+        isValidStaffCredentials(incoming(), staffId);
+      allow update: if isSignedIn() &&
+        isValidId(staffId) &&
+        (isAdmin() || isActiveManager()) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        isValidStaffCredentials(incoming(), staffId) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['username', 'passwordHash', 'passwordSalt', 'hashAlgo', 'role', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin() || isActiveManager());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin() || isActiveManager());
+      allow create: if isSignedIn() &&
+        isValidId(userId) &&
+        incoming().userId == userId &&
+        incoming().keys().hasAll(['userId', 'email', 'name', 'role', 'active', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly(['userId', 'email', 'username', 'staffPassword', 'name', 'role', 'active', 'permanentlyActivated', 'photoUrl', 'createdAt', 'updatedAt']) &&
+        isValidUser(incoming()) &&
+        (
+          (request.auth.uid == userId && (
+            isAdmin() ||
+            (
+              !('username' in incoming()) &&
+              !('staffPassword' in incoming()) &&
+              incoming().role == 'customer' &&
+              incoming().active == false &&
+              (!('permanentlyActivated' in incoming()) || incoming().permanentlyActivated == false)
+            )
+          )) ||
+          (
+            (isAdmin() || isActiveManager()) &&
+            isAllowedStaffRole(incoming().role) &&
+            (!('username' in incoming()) || isValidUsername(incoming().username))
+          )
+        );
+      allow update: if isSignedIn() &&
+        isValidId(userId) &&
+        isValidUser(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          (request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'email', 'photoUrl', 'updatedAt'])) ||
+          (
+            (isAdmin() || isActiveManager()) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['name', 'username', 'staffPassword', 'role', 'active', 'permanentlyActivated', 'photoUrl', 'updatedAt']) &&
+            (
+              !incoming().diff(existing()).affectedKeys().hasAny(['username']) ||
+              (isValidUsername(incoming().username) && incoming().role != 'customer')
+            ) &&
+            !(
+              existing().role == 'customer' &&
+              existing().get('permanentlyActivated', false) == true &&
+              incoming().role == 'customer' &&
+              (incoming().active == false || incoming().get('permanentlyActivated', false) == false)
+            ) &&
+            (
+              incoming().role != 'customer' ||
+              incoming().active == false ||
+              incoming().get('permanentlyActivated', false) == true
+            )
+          )
+        );
+      allow delete: if false;
+
+      match /fcm_tokens/{deviceId} {
+        allow get, list: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+        allow create: if isActivatedAccount() &&
+          isValidId(userId) &&
+          isValidId(deviceId) &&
+          request.auth.uid == userId &&
+          incoming().userId == userId &&
+          incoming().deviceId == deviceId &&
+          incoming().keys().hasAll(['token', 'userId', 'deviceId', 'role', 'platform', 'appVersion', 'notificationsEnabled', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['token', 'userId', 'deviceId', 'role', 'platform', 'appVersion', 'notificationsEnabled', 'createdAt', 'updatedAt']) &&
+          isValidFcmToken(incoming());
+        allow update: if isActivatedAccount() &&
+          isValidId(userId) &&
+          isValidId(deviceId) &&
+          request.auth.uid == userId &&
+          incoming().userId == existing().userId &&
+          incoming().deviceId == existing().deviceId &&
+          incoming().platform == existing().platform &&
+          incoming().createdAt == existing().createdAt &&
+          isValidFcmToken(incoming()) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['token', 'role', 'appVersion', 'notificationsEnabled', 'updatedAt']);
+        allow delete: if isSignedIn() && isValidId(userId) && isValidId(deviceId) && request.auth.uid == userId;
+      }
+
+      match /saved_items/{itemId} {
+        allow get, list: if isActivatedAccount() && isValidId(userId) && request.auth.uid == userId;
+        allow create, update: if isActivatedAccount() &&
+          isValidId(userId) &&
+          isValidId(itemId) &&
+          request.auth.uid == userId &&
+          incoming().menuItemId == itemId &&
+          incoming().keys().hasAll(['menuItemId', 'name', 'category', 'price', 'savedAt']) &&
+          incoming().keys().hasOnly(['menuItemId', 'name', 'category', 'price', 'imageUrl', 'savedAt']) &&
+          isValidSavedItem(incoming());
+        allow delete: if isActivatedAccount() && isValidId(userId) && isValidId(itemId) && request.auth.uid == userId;
+      }
+    }
+
+    match /menu_items/{itemId} {
+      allow get: if isActivatedAccount() && isValidId(itemId) && (resource.data.available == true || isAdmin() || isActiveStaff());
+      allow list: if isActivatedAccount() && (resource.data.available == true || isAdmin() || isActiveStaff());
+      allow create: if isSignedIn() &&
+        isValidId(itemId) &&
+        (isAdmin() || isActiveManager()) &&
+        incoming().keys().hasAll(['name', 'category', 'description', 'price', 'available', 'sortOrder', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly(['name', 'category', 'description', 'price', 'available', 'sortOrder', 'imageUrl', 'createdAt', 'updatedAt']) &&
+        isValidMenuItem(incoming());
+      allow update: if isSignedIn() &&
+        isValidId(itemId) &&
+        (isAdmin() || isActiveManager()) &&
+        isValidMenuItem(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'category', 'description', 'price', 'available', 'sortOrder', 'imageUrl', 'updatedAt']);
+      allow delete: if isSignedIn() && isValidId(itemId) && (isAdmin() || isActiveManager());
+    }
+
+    match /translations/{transKey} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isSignedIn() &&
+        isValidId(transKey) &&
+        (isAdmin() || isActiveManager()) &&
+        incoming().key == transKey &&
+        incoming().updatedBy == request.auth.uid &&
+        incoming().keys().hasAll(['key', 'category', 'en', 'am', 'enVersion', 'updatedBy', 'updatedAt']) &&
+        incoming().keys().hasOnly(['key', 'category', 'en', 'am', 'enVersion', 'updatedBy', 'updatedAt']) &&
+        isValidTranslationEntry(incoming());
+      allow delete: if isSignedIn() && isValidId(transKey) && (isAdmin() || isActiveManager());
+    }
+
+    match /app_config/{configId} {
+      allow get, list: if isActivatedAccount();
+      allow create, update: if isSignedIn() &&
+        configId == 'release' &&
+        (isAdmin() || isActiveManager()) &&
+        incoming().updatedBy == request.auth.uid &&
+        incoming().keys().hasAll(['latestVersionCode', 'latestVersionName', 'apkDownloadUrl', 'releaseNotes', 'mandatory', 'updatedBy', 'updatedAt']) &&
+        incoming().keys().hasOnly(['latestVersionCode', 'latestVersionName', 'apkDownloadUrl', 'apkSha256', 'releaseNotes', 'mandatory', 'updatedBy', 'updatedAt']) &&
+        isValidReleaseConfig(incoming());
+      allow delete: if false;
+    }
+
+    match /orders/{orderId} {
+      allow get: if isActivatedAccount() && isValidId(orderId) && (resource.data.userId == request.auth.uid || isAdmin() || isActiveStaff());
+      allow list: if isActivatedAccount() && (resource.data.userId == request.auth.uid || isAdmin() || isActiveStaff());
+      allow create: if isActivatedAccount() &&
+        isValidId(orderId) &&
+        incoming().userId == request.auth.uid &&
+        incoming().lastUpdatedByUid == request.auth.uid &&
+        incoming().status == 'new' &&
+        incoming().keys().hasAll(['orderNumber', 'userId', 'createdByRole', 'lastUpdatedByRole', 'lastUpdatedByUid', 'customerName', 'orderType', 'location', 'status', 'items', 'specialNote', 'cancelReason', 'subtotal', 'total', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly(['orderNumber', 'userId', 'createdByRole', 'lastUpdatedByRole', 'lastUpdatedByUid', 'customerName', 'orderType', 'location', 'status', 'items', 'specialNote', 'cancelReason', 'assignedWaiterId', 'assignedMethod', 'subtotal', 'total', 'createdAt', 'updatedAt']) &&
+        isValidOrder(incoming()) &&
+        (incoming().createdByRole == 'customer' || isAdmin() || isActiveStaff());
+      allow update: if isActivatedAccount() &&
+        isValidId(orderId) &&
+        isValidOrder(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().orderNumber == existing().orderNumber &&
+        incoming().createdByRole == existing().createdByRole &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().lastUpdatedByUid == request.auth.uid &&
+        (
+          isAdmin() ||
+          (isActiveStaff() && !(existing().status in ['done', 'cancelled']) && (
+            (existing().status == 'new' && incoming().status == 'confirmed' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'confirmedAt', 'updatedAt', 'lastUpdatedByRole', 'lastUpdatedByUid'])) ||
+            (existing().status in ['new', 'confirmed'] && incoming().status == 'preparing' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'confirmedAt', 'preparingAt', 'updatedAt', 'lastUpdatedByRole', 'lastUpdatedByUid'])) ||
+            (existing().status == 'preparing' && incoming().status == 'ready' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'readyAt', 'updatedAt', 'lastUpdatedByRole', 'lastUpdatedByUid'])) ||
+            (existing().status == 'ready' && incoming().status == 'done' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'doneAt', 'updatedAt', 'lastUpdatedByRole', 'lastUpdatedByUid'])) ||
+            (existing().status in ['new', 'confirmed'] && incoming().status == 'cancelled' && incoming().cancelReason.size() >= 1 && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'cancelReason', 'cancelledAt', 'updatedAt', 'lastUpdatedByRole', 'lastUpdatedByUid'])) ||
+            (incoming().status == existing().status && incoming().diff(existing()).affectedKeys().hasOnly(['assignedWaiterId', 'assignedMethod', 'updatedAt', 'lastUpdatedByRole', 'lastUpdatedByUid']))
+          ))
+        );
+      allow delete: if false;
+    }
+
+    match /brands/{roleKey} {
+      allow get: if isActivatedAccount() && isValidRoleKey(roleKey);
+      allow list: if isActivatedAccount() && resource.data.roleKey in ['manager', 'reception', 'kitchen', 'waiter', 'cashier', 'delivery', 'customer'];
+      allow create: if isSignedIn() &&
+        isValidRoleKey(roleKey) &&
+        incoming().roleKey == roleKey &&
+        incoming().updatedBy == request.auth.uid &&
+        incoming().keys().hasAll(['roleKey', 'primaryHex', 'secondaryHex', 'accentHex', 'brandName', 'mark', 'updatedBy', 'updatedAt']) &&
+        incoming().keys().hasOnly(['roleKey', 'primaryHex', 'secondaryHex', 'accentHex', 'brandName', 'mark', 'updatedBy', 'updatedAt']) &&
+        isValidBrand(incoming()) &&
+        (isAdmin() || isActiveManager() || userRoleEquals(roleKey));
+      allow update: if isSignedIn() &&
+        isValidRoleKey(roleKey) &&
+        incoming().roleKey == existing().roleKey &&
+        incoming().updatedBy == request.auth.uid &&
+        isValidBrand(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['primaryHex', 'secondaryHex', 'accentHex', 'brandName', 'mark', 'updatedBy', 'updatedAt']) &&
+        (isAdmin() || isActiveManager() || userRoleEquals(roleKey));
+      allow delete: if isSignedIn() && isValidRoleKey(roleKey) && (isAdmin() || isActiveManager() || userRoleEquals(roleKey));
+    }
+
+    match /notifications/{notifId} {
+      allow get, list: if isActivatedAccount() && (
+        resource.data.targetUserId == request.auth.uid ||
+        resource.data.senderUid == request.auth.uid ||
+        resource.data.targetRoles.hasAny(['all', 'customer']) ||
+        isAdmin() ||
+        isActiveStaff()
+      );
+      allow create: if isActivatedAccount() &&
+        isValidId(notifId) &&
+        incoming().senderUid == request.auth.uid &&
+        incoming().keys().hasAll(['senderUid', 'senderRole', 'senderBrandName', 'message', 'targetRoles', 'targetUserId', 'orderId', 'kind', 'createdAt']) &&
+        incoming().keys().hasOnly(['senderUid', 'senderRole', 'senderBrandName', 'message', 'targetRoles', 'targetUserId', 'orderId', 'kind', 'apkUrl', 'createdAt']) &&
+        isValidNotification(incoming()) &&
+        (
+          (incoming().kind == 'app_update' && (isAdmin() || isActiveManager())) ||
+          (incoming().kind != 'app_update' && (isAdmin() || isActiveStaff() || (incoming().targetUserId == request.auth.uid && incoming().kind == 'new')))
+        );
+      allow update, delete: if false;
+    }
+
+    match /counters/{counterId} {
+      allow get: if isActivatedAccount() && counterId == 'orders';
+      allow list, delete: if false;
+      allow create: if isActivatedAccount() &&
+        counterId == 'orders' &&
+        incoming().keys().hasAll(['nextOrderNumber', 'updatedAt']) &&
+        incoming().keys().hasOnly(['nextOrderNumber', 'updatedAt']) &&
+        incoming().nextOrderNumber is int &&
+        incoming().nextOrderNumber >= 1001 &&
+        incoming().nextOrderNumber <= 9999999 &&
+        incoming().updatedAt is timestamp &&
+        incoming().updatedAt <= request.time;
+      allow update: if isActivatedAccount() &&
+        counterId == 'orders' &&
+        incoming().keys().hasOnly(['nextOrderNumber', 'updatedAt']) &&
+        incoming().nextOrderNumber is int &&
+        incoming().nextOrderNumber == existing().nextOrderNumber + 1 &&
+        incoming().updatedAt is timestamp &&
+        incoming().updatedAt <= request.time;
+    }
+
+    match /waiter_coverage/{waiterId} {
+      allow get, list: if isSignedIn() && (isAdmin() || isActiveStaff());
+      allow create, update: if isSignedIn() &&
+        isValidId(waiterId) &&
+        incoming().userId == waiterId &&
+        incoming().keys().hasAll(['userId', 'waiterName', 'onDuty', 'areas', 'updatedAt']) &&
+        incoming().keys().hasOnly(['userId', 'waiterName', 'onDuty', 'areas', 'updatedAt']) &&
+        isValidWaiterCoverage(incoming()) &&
+        (isAdmin() || isActiveManager() || (isActiveStaff() && request.auth.uid == waiterId));
+      allow delete: if isSignedIn() && isValidId(waiterId) && (isAdmin() || isActiveManager());
+    }
+  }
+}

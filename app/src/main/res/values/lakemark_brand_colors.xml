@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="lakemark_purple">#2B0938</color>
+    <color name="lakemark_purple_light">#3D0F4F</color>
+    <color name="lakemark_purple_text">#5B2A6E</color>
+    <color name="lakemark_purple_tagline">#49125E</color>
+    <color name="lakemark_green">#04C353</color>
+    <color name="lakemark_lime">#7BE842</color>
+    <color name="lakemark_cream">#FDF6E9</color>
+</resources>

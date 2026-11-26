@@ -1,0 +1,56 @@
+name: Deploy Firebase Backend
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "functions/**"
+      - "firestore.rules"
+      - "firestore.indexes.json"
+      - "storage.rules"
+      - "firebase.json"
+      - ".firebaserc"
+      - ".github/workflows/deploy-firebase.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_PROJECT_ID: lakemark-app
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Cloud Functions dependencies
+        run: npm --prefix functions install --no-audit --no-fund
+
+      - name: Run Cloud Functions unit tests
+        run: node --test functions/index.test.js
+
+      - name: Verify Firebase deploy credentials exist
+        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LAKEMARK_APP == '' }}
+        run: |
+          echo "::error::Add GitHub Actions secret FIREBASE_SERVICE_ACCOUNT_LAKEMARK_APP (Firebase Console -> Project Settings -> Service accounts -> Generate new private key) so GitHub Actions can deploy Cloud Functions."
+          exit 1
+
+      - name: Authenticate with Google Cloud Service Account
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LAKEMARK_APP }}
+
+      - name: Deploy Cloud Functions, Storage Rules, and Firestore to Firebase
+        run: |
+          npx --yes firebase-tools@latest deploy \
+            --only functions,storage,firestore \
+            --project "${FIREBASE_PROJECT_ID}" \
+            --non-interactive \
+            --force

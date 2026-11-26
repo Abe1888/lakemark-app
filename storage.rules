@@ -1,0 +1,55 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdminEmail() {
+      return isSignedIn() &&
+        request.auth.token.email_verified == true &&
+        request.auth.token.email in ['abebaw4040@gmail.com'];
+    }
+
+    function callerUserDoc() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid));
+    }
+
+    function isActiveManager() {
+      return isAdminEmail() || (
+        isSignedIn() &&
+        callerUserDoc().data.active == true &&
+        callerUserDoc().data.role == 'manager'
+      );
+    }
+
+    function isValidImageUpload() {
+      return request.resource != null &&
+        request.resource.size > 0 &&
+        request.resource.size <= 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/(jpeg|jpg|png|webp)');
+    }
+
+    match /users/{userId}/profile/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() &&
+        (request.auth.uid == userId || isActiveManager()) &&
+        (request.resource == null || isValidImageUpload());
+    }
+
+    match /menu_items/{itemId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isActiveManager() &&
+        (request.resource == null || isValidImageUpload());
+    }
+
+    match /releases/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isActiveManager();
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1010314964245",
+    "project_id": "lakemark-app",
+    "storage_bucket": "lakemark-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1010314964245:android:3ce0bd71b81cbf9a630d1c",
+        "android_client_info": {
+          "package_name": "com.aistudio.applet.kphrxs"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1010314964245-sridkohbbdctcsqdm34jasl3mb39b697.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aistudio.applet.kphrxs",
+            "certificate_hash": "c043c403d7a8f1ba226d1bfc7c9c6acef048813e"
+          }
+        },
+        {
+          "client_id": "1010314964245-9f91q53nuqa7u32vath5eb292eu3gc0o.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD257FgAsxDcZiJrCv9AsBpIBAhmhzo1nQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1010314964245-9f91q53nuqa7u32vath5eb292eu3gc0o.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

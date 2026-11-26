@@ -64,7 +64,7 @@ It connects seven operational personas (**Manager**, **Reception**, **Kitchen**,
 ### 1.4 Current Build & Deployment Snapshot
 | Dimension | Audited State |
 |---|---|
-| **Android App Version** | `3.4.4` (`versionCode = 18`, `applicationId = "com.aistudio.applet.kphrxs"`, `minSdk = 24`, `targetSdk = 36`). Ready to be built and signed against `lakemark-app` (`lakemark-release-v1.apk`). |
+| **Android App Version** | `3.4.7` (`versionCode = 21`, `applicationId = "com.aistudio.applet.kphrxs"`, `minSdk = 24`, `targetSdk = 36`). Built and signed against `lakemark-app` (`app/build/outputs/apk/release/lakemark-release-v4.apk`). |
 | **Distribution & Signing** | Internal Play Store–free APK replacement model using `ApkUpdateManager` (`REQUEST_INSTALL_PACKAGES` + `FileProvider` + SHA-256 & signing certificate verification). Production builds require `my-upload-key.jks` (`KEYSTORE_PATH` / `STORE_PASSWORD` / `KEY_PASSWORD`). |
 | **Firebase Project & DB** | Project `lakemark-app` (`1010314964245`), `(default)` Firestore database (`nam5`), Auth Google Sign-In enabled (`abebaw4040@gmail.com`). |
 | **Cloud Functions (`functions/index.js`)** | 5 Cloud Functions v2 implemented (`dispatchLakemarkNotification`, `staffSignIn`, `createStaffAccount`, `updateStaffAccount`, `resetStaffPassword`); **pending Blaze plan upgrade & live deployment to `lakemark-app`**. |
@@ -81,7 +81,7 @@ It connects seven operational personas (**Manager**, **Reception**, **Kitchen**,
 | **Onboarding & Auth** | Branded Splash screen with flame emblem and `"Get Started"` CTA | **[Implemented]** | `SplashScreen.kt` |
 | **Onboarding & Auth** | Dual-mode Auth screen (`Staff Sign In` default tab; `Manager Login` Google tab) | **[Implemented]** | `AuthScreen.kt`, `MainActivity.kt` |
 | **Onboarding & Auth** | Silent Google auto-sign-in attempt on app launch (`CredentialManager`) | **[Implemented]** | `GoogleAuthManager.kt`, `MainActivity.kt` |
-| **Onboarding & Auth** | App-managed Staff Sign-In via HTTPS `POST /staffSignIn` + Firebase Custom Token | **[Implemented]** | `StaffAuthClient.kt`, `functions/index.js` |
+| **Onboarding & Auth** | App-managed Staff Sign-In via Firebase Auth Email/Password (`@staff.lakemark.local`) + Firestore `/users/{uid}` | **[Implemented]** | `StaffAuthClient.kt`, `LakemarkRepository.kt` |
 | **Onboarding & Auth** | Pre-authorized Admin email bootstrap (`abebaw4040@gmail.com`) | **[Implemented]** | `LakemarkRepository.kt`, `firestore.rules`, `functions/staffAuth.js` |
 | **Onboarding & Auth** | Manager-only Google setup gate & Staff disabled gate (`Account Disabled`) | **[Implemented]** | `MainActivity.kt`, `LakemarkRepository.kt`, `firestore.rules` |
 | **Home Dashboard** | Role-specific Hero KPI card & 3-row status stack | **[Implemented]** | `HomeScreen.kt` |
@@ -429,7 +429,7 @@ Lakemark combines two synchronized real-time notification channels reconciled th
 ---
 
 ### Prioritized Next-Step Roadmap
-1. **Immediate (Production Readiness on `lakemark-app`):** Upgrade `lakemark-app` to Blaze, initialize Firebase Storage, and deploy `functions` and `storage` rules; register production release keystore SHA-1/SHA-256 in Firebase Console; build and sign `lakemark-release-v1.apk` with `my-upload-key.jks` and execute end-to-end physical device tests (Google Sign-In, Staff Auth, foreground/background/killed FCM, and in-place **Update Now** rollout) while monitoring `firebase functions:log`.
+1. **Immediate (Production Readiness on `lakemark-app`):** Enable Email/Password Sign-In in Firebase Console, install `app/build/outputs/apk/release/lakemark-release-v4.apk` on Android devices, sign in as Manager (`abebaw4040@gmail.com`) to sync the 5 starter staff accounts, and verify Staff Sign-In (`@reception1`..`@delivery1`), live Firestore sync, and SOT-1 notification sounds. Upgrade to Blaze later when ready to deploy `functions` and initialize `storage`.
 2. **Short-Term (Hardening & Workflow Fixes):** Sync `staff_credentials.role` on role changes (or block promoting/demoting username staff to `customer`/`manager`), use Firestore transaction/unique-username doc lock in `createStaffAccount`, display `NEW` orders or clear handoff UX on `KitchenScreen`, and align `0 ETB` validation.
 3. **Medium-Term (Scale & Feature Completeness):** Add `.limit()` / time-window queries on `orders` and `notifications`, share `ordersFlow` with `observeRealTimeAlerts()`, implement Cashier settlement/receipt flows, and clarify Today vs. 7d revenue metrics.
 

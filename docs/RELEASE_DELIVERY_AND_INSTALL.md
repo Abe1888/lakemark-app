@@ -6,7 +6,7 @@
 **Firestore Database:** `(default)`  
 **Auth & Push Architecture:** Direct Admin Login + Native Firebase Auth/Firestore (no Render/Railway)  
 **Build Type:** Release (`assembleRelease`, `minSdk = 24`, `targetSdk = 36`, APK Signature Scheme v2)  
-**Distribution Model:** Internal company APK distribution (`lakemark-release-v4.apk`, Play Store–free). **Do not upload to Google Play Store.**
+**Distribution Model:** Internal company APK distribution (`app/build/outputs/apk/release/lakemark-release-v4.apk`, Play Store–free). **Do not upload to Google Play Store.**
 
 ---
 
@@ -26,9 +26,9 @@ Lakemark distributes full, identically signed APKs for both fresh installations 
 Every production APK **must** be signed with the same production release keystore (`KEYSTORE_PATH` / `my-upload-key.jks`, alias `upload`) so devices upgrade in place without uninstalling:
 
 1. Extract the release keystore's **SHA-1** and **SHA-256** fingerprints and register them in **Firebase Console → Project Settings → Your apps (`com.aistudio.applet.kphrxs`)**.
-2. Verify any built APK (`lakemark-release-v1.apk` or newer) with `apksigner`:
+2. Verify the built APK (`app/build/outputs/apk/release/lakemark-release-v4.apk`) with `apksigner`:
    ```powershell
-   apksigner verify --verbose --print-certs lakemark-release-v1.apk
+   apksigner verify --verbose --print-certs app/build/outputs/apk/release/lakemark-release-v4.apk
    ```
 
 ---
@@ -51,16 +51,22 @@ Every production APK **must** be signed with the same production release keystor
 
 ---
 
-## 4. Publishing an In-App Update Over Production FCM
+## 4. Publishing an In-App Update (Free on Spark via GitHub Releases)
 
-1. Build and sign the new APK (`versionCode` incremented, signed with the **same** release keystore).
-2. Upload the APK to Firebase Storage in bucket `lakemark-app.firebasestorage.app` under `releases/<apk-filename>.apk` and copy its HTTPS download URL.
-3. Open Lakemark as the authorized Manager (`abebaw4040@gmail.com`) → **Manage → Alerts → Release Update & Delivery** and enter:
+While on the Firebase **Spark (Free)** plan (before Firebase Storage is initialized), use **GitHub Releases** as the zero-HTML-redirect HTTPS APK host:
+
+1. Build and sign the new APK (`versionCode` incremented, signed with the **same** release keystore) → output at `app/build/outputs/apk/release/lakemark-release-v4.apk`.
+2. In your GitHub repository, go to **Releases → Draft a new release**, create a tag (e.g. `v3.4.7`), attach `lakemark-release-v4.apk`, and click **Publish release**.
+3. Right-click the attached `.apk` asset under **Assets** and copy its direct HTTPS URL:
+   `https://github.com/<username>/lakemark-app/releases/download/v3.4.7/lakemark-release-v4.apk`
+4. Open Lakemark as the authorized Manager (`abebaw4040@gmail.com`) → **Manage → Alerts → Release Update & Delivery** and enter:
    - **Version name** and **Version code**
-   - **APK download URL** (`https://...`)
+   - **APK download URL** (`https://github.com/.../releases/download/.../lakemark-release-v4.apk`)
    - **APK SHA-256 (optional)**
    - **Release notes**
-4. Tap **Publish & notify users** to update `/app_config/release` and fan out the `app_update` push notification (with **Update Now**) to all registered devices.
+5. Tap **Publish & notify users** to update `/app_config/release` and broadcast the `app_update` notification (with **Update Now**) to active devices.
+
+*(Once upgraded to Blaze with Firebase Storage initialized, you can alternatively upload to `lakemark-app.firebasestorage.app` under `releases/<apk-filename>.apk`.)*
 
 ---
 
@@ -81,7 +87,7 @@ Upgrading in place (via **Update Now** or `adb install -r`) preserves all user a
 ```powershell
 adb devices
 adb shell dumpsys package com.aistudio.applet.kphrxs | Select-String "versionCode|versionName"
-adb install -r lakemark-release-v1.apk
+adb install -r app/build/outputs/apk/release/lakemark-release-v4.apk
 adb shell dumpsys package com.aistudio.applet.kphrxs | Select-String "versionCode|versionName"
 ```
 > **Do NOT run `adb uninstall com.aistudio.applet.kphrxs`** before upgrading, as uninstalling deletes local auth sessions, DataStore preferences, and `deviceId`.

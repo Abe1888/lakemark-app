@@ -6,7 +6,7 @@
 **Firestore Database:** `(default)` (`nam5`)  
 **Master Admin Email:** `abebaw4040@gmail.com` (sole allowlisted admin)  
 **Auth & Push Architecture:** Direct Admin Login + Native Firebase Auth/Firestore (no Render/Railway)  
-**Distribution Model:** Internal company APK distribution (`lakemark-release-v4.apk`, Play Store–free)
+**Distribution Model:** Internal company APK distribution (`app/build/outputs/apk/release/lakemark-release-v4.apk`, Play Store–free)
 
 ---
 
@@ -20,7 +20,7 @@
 - **Direct Admin Login & Native Firebase Staff Auth (Spark Free Plan):** Removed the Render/Railway server setup. Manager (`abebaw4040@gmail.com`) signs in directly via Google Sign-In with full role switching; staff accounts are provisioned directly via Firebase Auth Email/Password (`@staff.lakemark.local` via secondary `FirebaseApp`) and Firestore (`users` + `staff_credentials`), and notifications are routed in real time via Firestore listeners + custom SOT-1 WAV sounds.
 
 ### B. Authentication, Localization, Profiles, Saved Dishes & Food Photos
-- **Manager Google Setup & Staff Auth:** `AuthScreen` separates **Staff Sign In** (`POST /staffSignIn` with `scrypt` / `pbkdf2_sha256` verification) and **Manager Login** (Google Sign-In via `CredentialManager`). Unauthorized non-admin Google sign-ins during setup are cleanly rejected.
+- **Manager Google Setup & Staff Auth:** `AuthScreen` separates **Staff Sign In** (Firebase Auth Email/Password with `@staff.lakemark.local` + Firestore `/users/{uid}`) and **Manager Login** (Google Sign-In via `CredentialManager`). Unauthorized non-admin Google sign-ins during setup are cleanly rejected.
 - **Complete EN & AM Localization:** Full English and Amharic translations via `AppStrings` / `TranslationCatalog`, `noto_sans_ethiopic.ttf` typography, DataStore persistence, and real-time Manager editing in `Manage → Language` (`/translations/{key}`).
 - **User Profiles & Food Photos:** Camera/gallery upload via `MediaImageUploader` (MIME `image/jpeg`, `image/png`, `image/webp`, 5 MB cap, EXIF rotation) to Firebase Storage (`users/{uid}/profile/...` and `menu_items/{itemId}/...`).
 - **Saved Dishes & Newly Registered Queue:** Per-user bookmarks in `/users/{uid}/saved_items/{menuItemId}` (`SavedScreen`) and newest-first registration queue in `Manage → Team → Newly Registered`.

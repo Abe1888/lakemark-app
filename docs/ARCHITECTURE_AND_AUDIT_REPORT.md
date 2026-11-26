@@ -18,6 +18,7 @@ lakemark-app/
 ├── .github/workflows/
 │   └── deploy-firebase.yml          # Admin SDK CI/CD (google-github-actions/auth@v2)
 ├── app/
+│   ├── build/outputs/apk/release/   # Signed release APKs (app-release.apk, lakemark-release-v4.apk)
 │   ├── build.gradle.kts             # Android config, Crashlytics, Analytics
 │   ├── google-services.json         # lakemark-app Android & Web OAuth client config
 │   └── src/
@@ -31,12 +32,14 @@ lakemark-app/
 │       │   │   └── util/            # ApkUpdateManager, AlertAudioAndNotificationManager, MediaImageUploader
 │       │   └── res/                 # Updated LM vector/adaptive icons, splash, fonts, strings
 │       └── test/                    # Unit & Robolectric test suites
+├── build/                           # Root Gradle reports & configuration cache
 ├── docs/                            # Centralized project documentation
 │   ├── ARCHITECTURE_AND_AUDIT_REPORT.md
 │   ├── FINAL_DELIVERABLE_REPORT.md
 │   ├── PRD.md
 │   └── RELEASE_DELIVERY_AND_INSTALL.md
-├── functions/                       # Cloud Functions v2 (Node 20, firebase-admin ^13.0.0)
+├── functions/                       # Optional Cloud Functions v2 (Node 20, kept separate from Android builds)
+│   ├── handlers.js
 │   ├── index.js
 │   ├── index.test.js
 │   ├── pushRouting.js
@@ -52,7 +55,6 @@ lakemark-app/
 ├── firestore.test.js                # Firestore rules emulator test suite
 ├── storage.rules                    # Zero-trust Firebase Storage rules
 ├── my-upload-key.jks                # Production release keystore (RSA 2048, alias: upload)
-├── lakemark-release-v1.apk          # Signed production APK v3.4.4 (19.8 MB)
 └── README.md                        # Repository entry point linking to /docs
 ```
 
@@ -101,7 +103,7 @@ Lakemark is configured for **Play Store–free internal distribution** with zero
 
 | Property | Value |
 |---|---|
-| **APK File** | `lakemark-release-v4.apk` (project root; supersedes `v1`–`v3`) |
+| **APK File** | `app/build/outputs/apk/release/lakemark-release-v4.apk` (also `app-release.apk`; supersedes `v1`–`v3`) |
 | **App Version** | `3.4.7` (versionCode `21`) |
 | **Application ID** | `com.aistudio.applet.kphrxs` |
 | **Auth & Notification Mode** | Option A: Direct Admin Login + Native Firebase Auth (`@staff.lakemark.local`) + Firestore Real-Time Listeners |

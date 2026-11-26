@@ -115,6 +115,7 @@ object ApkUpdateVerifier {
 }
 
 object ApkUpdateDownloader {
+    private const val MAX_APK_BYTES: Long = 200L * 1024L * 1024L
 
     fun canRequestPackageInstalls(context: Context): Boolean =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -125,13 +126,22 @@ object ApkUpdateDownloader {
 
     fun openUnknownSourcesSettings(context: Context): Result<Unit> = runCatching {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val intent = Intent(
+            val packageIntent = Intent(
                 Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                 Uri.parse("package:${context.packageName}"),
             ).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            context.startActivity(intent)
+            val startedPackage = runCatching { context.startActivity(packageIntent) }.isSuccess
+            if (!startedPackage) {
+                val appDetailsIntent = Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:${context.packageName}"),
+                ).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(appDetailsIntent)
+            }
         }
     }
 
@@ -191,6 +201,10 @@ object ApkUpdateDownloader {
             } else {
                 connection.contentLength.toLong()
             }
+            if (totalBytes > MAX_APK_BYTES) {
+                onState(ApkDownloadState.Failed("Update file exceeds maximum allowed size (200 MB)."))
+                return@withContext
+            }
 
             onState(ApkDownloadState.Downloading(progressFraction = null, bytesRead = 0L, totalBytes = totalBytes))
 
@@ -213,8 +227,13 @@ object ApkUpdateDownloader {
                                 return@withContext
                             }
                         }
-                        output.write(buffer, 0, read)
                         bytesReadTotal += read
+                        if (bytesReadTotal > MAX_APK_BYTES) {
+                            tempFile.delete()
+                            onState(ApkDownloadState.Failed("Update file exceeds maximum allowed size (200 MB)."))
+                            return@withContext
+                        }
+                        output.write(buffer, 0, read)
                         val fraction = if (totalBytes > 0L) {
                             (bytesReadTotal.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
                         } else {
@@ -372,8 +391,7 @@ object ApkUpdateDownloader {
         val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             val signingInfo = info.signingInfo
             if (signingInfo != null) {
-                if (signingInfo.hasMultipleSigners()) signingInfo.apkContentsSigners
-                else signingInfo.signingCertificateHistory
+                signingInfo.apkContentsSigners
             } else {
                 info.signatures
             }

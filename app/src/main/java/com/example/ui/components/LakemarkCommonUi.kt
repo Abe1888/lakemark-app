@@ -210,9 +210,9 @@ fun LakemarkTopBar(
                 modifier = Modifier.weight(1f),
             ) {
                 Image(
-                    painter = painterResource(R.drawable.lakemark_logo),
+                    painter = painterResource(R.drawable.lakemark_badge),
                     contentDescription = s.get("app_brand_name", "LAKEMARK"),
-                    contentScale = ContentScale.Crop,
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape),

@@ -1,4 +1,4 @@
-# Lakemark Kitchen Management — Product Requirements Document (PRD)
+﻿# Lakemark Kitchen Management — Product Requirements Document (PRD)
 
 **Document Version:** 2.1 (Spark Free + Render Backend & `v3.4.5` Baseline)  
 **Application Name:** Lakemark (Branch Context: Bahir Dar)  
@@ -64,7 +64,7 @@ It connects seven operational personas (**Manager**, **Reception**, **Kitchen**,
 ### 1.4 Current Build & Deployment Snapshot
 | Dimension | Audited State |
 |---|---|
-| **Android App Version** | `3.4.7` (`versionCode = 21`, `applicationId = "com.aistudio.applet.kphrxs"`, `minSdk = 24`, `targetSdk = 36`). Built and signed against `lakemark-app` (`app/build/outputs/apk/release/lakemark-release-v4.apk`). |
+| **Android App Version** | `3.4.7` (`versionCode = 21`, `applicationId = "com.aistudio.applet.kphrxs"`, `minSdk = 24`, `targetSdk = 36`). Built and signed against `lakemark-app` (`app/build/outputs/apk/release/lakemark-v3.4.7.apk`). |
 | **Distribution & Signing** | Internal Play Store–free APK replacement model using `ApkUpdateManager` (`REQUEST_INSTALL_PACKAGES` + `FileProvider` + SHA-256 & signing certificate verification). Production builds require `my-upload-key.jks` (`KEYSTORE_PATH` / `STORE_PASSWORD` / `KEY_PASSWORD`). |
 | **Firebase Project & DB** | Project `lakemark-app` (`1010314964245`), `(default)` Firestore database (`nam5`), Auth Google Sign-In enabled (`abebaw4040@gmail.com`). |
 | **Cloud Functions (`functions/index.js`)** | 5 Cloud Functions v2 implemented (`dispatchLakemarkNotification`, `staffSignIn`, `createStaffAccount`, `updateStaffAccount`, `resetStaffPassword`); **pending Blaze plan upgrade & live deployment to `lakemark-app`**. |
@@ -429,7 +429,7 @@ Lakemark combines two synchronized real-time notification channels reconciled th
 ---
 
 ### Prioritized Next-Step Roadmap
-1. **Immediate (Production Readiness on `lakemark-app`):** Enable Email/Password Sign-In in Firebase Console, install `app/build/outputs/apk/release/lakemark-release-v4.apk` on Android devices, sign in as Manager (`abebaw4040@gmail.com`) to sync the 5 starter staff accounts, and verify Staff Sign-In (`@reception1`..`@delivery1`), live Firestore sync, and SOT-1 notification sounds. Upgrade to Blaze later when ready to deploy `functions` and initialize `storage`.
+1. **Immediate (Production Readiness on `lakemark-app`):** Enable Email/Password Sign-In in Firebase Console, install `app/build/outputs/apk/release/lakemark-v3.4.7.apk` on Android devices, sign in as Manager (`abebaw4040@gmail.com`) to sync the 5 starter staff accounts, and verify Staff Sign-In (`@reception1`..`@delivery1`), live Firestore sync, and SOT-1 notification sounds. Upgrade to Blaze later when ready to deploy `functions` and initialize `storage`.
 2. **Short-Term (Hardening & Workflow Fixes):** Sync `staff_credentials.role` on role changes (or block promoting/demoting username staff to `customer`/`manager`), use Firestore transaction/unique-username doc lock in `createStaffAccount`, display `NEW` orders or clear handoff UX on `KitchenScreen`, and align `0 ETB` validation.
 3. **Medium-Term (Scale & Feature Completeness):** Add `.limit()` / time-window queries on `orders` and `notifications`, share `ordersFlow` with `observeRealTimeAlerts()`, implement Cashier settlement/receipt flows, and clarify Today vs. 7d revenue metrics.
 

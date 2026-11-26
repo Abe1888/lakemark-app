@@ -1,4 +1,4 @@
-# Lakemark Kitchen Management — Architecture & Evidence-Based Audit Report
+﻿# Lakemark Kitchen Management — Architecture & Evidence-Based Audit Report
 
 **Application ID:** `com.aistudio.applet.kphrxs` (`namespace = "com.example"`)  
 **App Version:** `3.4.7` (`versionCode = 21`)  
@@ -18,7 +18,7 @@ lakemark-app/
 ├── .github/workflows/
 │   └── deploy-firebase.yml          # Admin SDK CI/CD (google-github-actions/auth@v2)
 ├── app/
-│   ├── build/outputs/apk/release/   # Signed release APKs (app-release.apk, lakemark-release-v4.apk)
+│   ├── build/outputs/apk/release/   # Signed release APKs (app-release.apk, lakemark-v3.4.7.apk)
 │   ├── build.gradle.kts             # Android config, Crashlytics, Analytics
 │   ├── google-services.json         # lakemark-app Android & Web OAuth client config
 │   └── src/
@@ -89,13 +89,13 @@ Lakemark is configured for **Play Store–free internal distribution** with zero
 | Firebase Android SHA & OAuth Config | `firebase apps:android:sha:create` + `apps:sdkconfig ANDROID` | **PASSED** — `SHA_1` (`8a2da36631a2012e`) & `SHA_256` (`9aedeae096191ab1`) registered; `app/google-services.json` includes Android `client_type: 1` & Web `client_type: 3` OAuth clients |
 | Config JSON Validation | `app/google-services.json`, `.firebaserc`, `firebase.json` | **PASSED** (Valid JSON targeting `lakemark-app`) |
 | Reference & Cleanup Scan | PowerShell `Select-String` across active files | **PASSED** (0 stale project IDs, Render/Railway configs, removed emails, `FIREBASE_TOKEN`, or broken doc paths) |
-| Android Gradle Build & APK Signing | `gradle :app:assembleRelease` + `apksigner verify` | **PASSED** — `lakemark-release-v4.apk` (v3.4.7, versionCode 21) signed with production keystore (`CN=Lakemark App, O=Lakemark, L=Addis Ababa, C=ET`), APK Signature Scheme v2 verified; 3 SOT-1 `.wav` sound files packaged |
+| Android Gradle Build & APK Signing | `gradle :app:assembleRelease` + `apksigner verify` | **PASSED** — `lakemark-v3.4.7.apk` (v3.4.7, versionCode 21) signed with production keystore (`CN=Lakemark App, O=Lakemark, L=Addis Ababa, C=ET`), APK Signature Scheme v2 verified; 3 SOT-1 `.wav` sound files packaged |
 | Android Unit Tests | `gradle :app:testDebugUnitTest` | **PARTIAL** — `FcmPushTests` (11/11) & `ExampleUnitTest` (1/1) **PASSED**; 3 Robolectric `@Config(sdk = [36])` tests require Java 21 (JDK 17 installed here) |
 | Signing Certificate SHA-256 | `apksigner verify --print-certs` | `2b:2d:58:5f:f1:94:0c:ba:0a:f6:85:e7:f0:8d:ca:e0:d3:e6:73:8b:be:b7:35:da:f0:5c:7d:3e:1f:e3:2e:ab` |
 | Signing Certificate SHA-1 | `apksigner verify --print-certs` | `c0:43:c4:03:d7:a8:f1:ba:22:6d:1b:fc:7c:9c:6a:ce:f0:48:81:3e` |
 | Cloud Functions Deploy (`lakemark-app`) | `firebase deploy --only functions --project lakemark-app` | **DEFERRED (Spark Plan)** — Direct Admin Login + native Firebase Auth/Firestore used instead until Blaze upgrade |
 | Storage Rules Deploy (`lakemark-app`) | `firebase deploy --only storage --project lakemark-app` | **BLOCKED** — Firebase Storage bucket must be initialized in Console (new projects may require Blaze for Storage initialization) |
-| Real-Device End-to-End Test | Physical Android devices (`adb devices` = none attached) | **NOT VERIFIED** — Requires installing `lakemark-release-v4.apk` on physical Android devices |
+| Real-Device End-to-End Test | Physical Android devices (`adb devices` = none attached) | **NOT VERIFIED** — Requires installing `lakemark-v3.4.7.apk` on physical Android devices |
 
 ---
 
@@ -103,7 +103,7 @@ Lakemark is configured for **Play Store–free internal distribution** with zero
 
 | Property | Value |
 |---|---|
-| **APK File** | `app/build/outputs/apk/release/lakemark-release-v4.apk` (also `app-release.apk`; supersedes `v1`–`v3`) |
+| **APK File** | `app/build/outputs/apk/release/lakemark-v3.4.7.apk` (also `app-release.apk`; supersedes `v1`–`v3`) |
 | **App Version** | `3.4.7` (versionCode `21`) |
 | **Application ID** | `com.aistudio.applet.kphrxs` |
 | **Auth & Notification Mode** | Option A: Direct Admin Login + Native Firebase Auth (`@staff.lakemark.local`) + Firestore Real-Time Listeners |
@@ -121,6 +121,6 @@ Lakemark is configured for **Play Store–free internal distribution** with zero
 ## 5. Required Next Steps (Cannot Be Automated Here)
 
 1. **Enable Email/Password Sign-In in Firebase Console (Free on Spark):** Open **Firebase Console → Authentication → Sign-in method**, enable **Email/Password**, and save.
-2. **Install `lakemark-release-v4.apk` on Real Android Devices:** Sign in as Manager (`abebaw4040@gmail.com`) to auto-seed/sync starter staff accounts, view usernames & passwords in **Manage → Team**, test Staff Sign-In (`@reception1`, `@kitchen1`, etc.), Firestore operations, and custom SOT-1 notification sounds.
+2. **Install `lakemark-v3.4.7.apk` on Real Android Devices:** Sign in as Manager (`abebaw4040@gmail.com`) to auto-seed/sync starter staff accounts, view usernames & passwords in **Manage → Team**, test Staff Sign-In (`@reception1`, `@kitchen1`, etc.), Firestore operations, and custom SOT-1 notification sounds.
 3. **Firebase Storage (Profile/Food Photos & APK Hosting):** Initialize **Firebase Storage** (`https://console.firebase.google.com/project/lakemark-app/storage`) and run `npx -y firebase-tools@latest deploy --only storage --project lakemark-app` (Note: if Google Console requires Blaze to provision the default Storage bucket on `lakemark-app`, image uploads and Firebase Storage APK hosting remain deferred until Blaze upgrade; APKs can be hosted on any HTTPS host such as GitHub Releases during Spark testing).
 4. **Final Production Cutover (When Ready for Blaze):** Upgrade `lakemark-app` to **Blaze**, and run `npx -y firebase-tools@latest deploy --only functions,storage --project lakemark-app`.

@@ -1,4 +1,4 @@
-# Lakemark Kitchen Management — Final Deliverable Report
+﻿# Lakemark Kitchen Management — Final Deliverable Report
 
 **Application ID:** `com.aistudio.applet.kphrxs`  
 **App Version:** `3.4.7` (`versionCode = 21`)  
@@ -6,7 +6,7 @@
 **Firestore Database:** `(default)` (`nam5`)  
 **Master Admin Email:** `abebaw4040@gmail.com` (sole allowlisted admin)  
 **Auth & Push Architecture:** Direct Admin Login + Native Firebase Auth/Firestore (no Render/Railway)  
-**Distribution Model:** Internal company APK distribution (`app/build/outputs/apk/release/lakemark-release-v4.apk`, Play Store–free)
+**Distribution Model:** Internal company APK distribution (`app/build/outputs/apk/release/lakemark-v3.4.7.apk`, Play Store–free)
 
 ---
 
@@ -42,17 +42,17 @@
 | Firebase Auth & Firestore Deploy | `npx -y firebase-tools@latest deploy --only auth,firestore --project lakemark-app` | **PASSED** (Google Sign-In enabled; `(default)` rules & indexes deployed) |
 | Android SHA-1 & SHA-256 Registration | `firebase apps:android:sha:create` + `apps:sdkconfig ANDROID` | **PASSED** (`SHA_1` + `SHA_256` registered; `google-services.json` includes `client_type: 1` & `3`) |
 | Cloud Functions Test Suite | `node --test functions\index.test.js` | **PASSED** (Push payload routing & channel validation) |
-| Signed Production APK (`v4`) | `gradle :app:assembleRelease` + `apksigner verify` | **PASSED** (`lakemark-release-v4.apk`, v3.4.7, versionCode 21, APK Signature Scheme v2 verified) |
+| Signed Production APK (`v4`) | `gradle :app:assembleRelease` + `apksigner verify` | **PASSED** (`lakemark-v3.4.7.apk`, v3.4.7, versionCode 21, APK Signature Scheme v2 verified) |
 | Codebase Cleanup Scan | PowerShell `Select-String` across active files | **PASSED** (0 references to Render/Railway, removed emails, `svufua`, `FIREBASE_TOKEN`, or old project ID) |
 | Cloud Functions Deploy (`lakemark-app`) | `firebase deploy --only functions --project lakemark-app` | **DEFERRED** (Spark Plan — Direct Admin Login & native Firebase Auth/Firestore used instead) |
 | Storage Rules Deploy (`lakemark-app`) | `firebase deploy --only storage --project lakemark-app` | **BLOCKED** (Requires Storage bucket initialization in Console; may require Blaze on new projects) |
-| Real-Device End-to-End Test | Physical Android devices | **NOT VERIFIED** (No ADB device connected here; requires testing `lakemark-release-v4.apk` on phone) |
+| Real-Device End-to-End Test | Physical Android devices | **NOT VERIFIED** (No ADB device connected here; requires testing `lakemark-v3.4.7.apk` on phone) |
 
 ---
 
 ## 3. Remaining Manual / Console Steps
 
 1. **Enable Email/Password Sign-In in Firebase Console (Free on Spark):** Open **Firebase Console → Authentication → Sign-in method**, enable **Email/Password**, and save.
-2. **Test `lakemark-release-v4.apk` on Real Devices:** Install `lakemark-release-v4.apk`, sign in as Manager (`abebaw4040@gmail.com`) to auto-seed/sync staff accounts, verify usernames & passwords in **Manage → Team**, test Staff Sign-In (`@reception1`, `@kitchen1`, etc.), Firestore operations, and custom SOT-1 notification sounds.
+2. **Test `lakemark-v3.4.7.apk` on Real Devices:** Install `lakemark-v3.4.7.apk`, sign in as Manager (`abebaw4040@gmail.com`) to auto-seed/sync staff accounts, verify usernames & passwords in **Manage → Team**, test Staff Sign-In (`@reception1`, `@kitchen1`, etc.), Firestore operations, and custom SOT-1 notification sounds.
 3. **Initialize Firebase Storage (or Upgrade to Blaze When Ready):** Visit `https://console.firebase.google.com/project/lakemark-app/storage` (note: new projects may require Blaze for Storage bucket creation) and deploy `storage.rules` + `functions` when ready for production Blaze cutover.
 4. **Configure GitHub Actions Secret:** Add `FIREBASE_SERVICE_ACCOUNT_LAKEMARK_APP` in GitHub repository secrets for automated CI deployments.

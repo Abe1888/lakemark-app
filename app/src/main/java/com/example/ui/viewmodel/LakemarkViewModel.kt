@@ -1257,7 +1257,7 @@ class LakemarkViewModel(
         _localUi.update { it.copy(teamSubSection = subSection) }
     }
 
-    fun addToCart(item: MenuItem) {
+    fun addToCart(item: MenuItem, openSheet: Boolean = false) {
         if (!item.available) {
             showToast("${item.name} is sold out")
             return
@@ -1270,9 +1270,18 @@ class LakemarkViewModel(
             } else {
                 updated.add(CartItem(item, 1))
             }
-            state.copy(cart = updated)
+            state.copy(
+                cart = updated,
+                showCartSheet = if (openSheet) true else state.showCartSheet,
+            )
         }
-        showToast("${item.name} added")
+        if (!openSheet) {
+            showToast("${item.name} added")
+        }
+    }
+
+    fun addToCartAndOpenOrder(item: MenuItem) {
+        addToCart(item, openSheet = true)
     }
 
     fun decrementCartItem(itemId: String) {
@@ -1311,11 +1320,11 @@ class LakemarkViewModel(
     ) {
         val state = uiState.value
         val s = state.strings
-        val place = state.selectedPlace
-        if (place == null) {
-            onValidationError(s.get("cart_empty_spot", "Choose Rooms, Restaurant, Reception or Takeaway first."))
-            return
-        }
+        val place = state.selectedPlace ?: PlaceSelection(
+            type = OrderType.DINE,
+            location = "Table 1",
+            label = "Table 1",
+        )
         if (state.cart.isEmpty()) {
             onValidationError(s.get("orders_empty", "Your order is empty."))
             return

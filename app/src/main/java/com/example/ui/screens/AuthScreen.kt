@@ -148,9 +148,9 @@ fun AuthScreen(
                             ),
                     )
                     Image(
-                        painter = painterResource(R.drawable.lakemark_logo),
+                        painter = painterResource(R.drawable.lakemark_badge),
                         contentDescription = s.get("app_brand_name", "LAKEMARK"),
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .offset(x = (-10).dp, y = (-4).dp)

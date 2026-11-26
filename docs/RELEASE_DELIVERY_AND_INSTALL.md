@@ -1,4 +1,4 @@
-# Lakemark Kitchen Management — Release Delivery & Installation Guide
+﻿# Lakemark Kitchen Management — Release Delivery & Installation Guide
 
 **Application ID:** `com.aistudio.applet.kphrxs`  
 **Current App Version:** `3.4.7` (`versionCode = 21`)  
@@ -6,7 +6,7 @@
 **Firestore Database:** `(default)`  
 **Auth & Push Architecture:** Direct Admin Login + Native Firebase Auth/Firestore (no Render/Railway)  
 **Build Type:** Release (`assembleRelease`, `minSdk = 24`, `targetSdk = 36`, APK Signature Scheme v2)  
-**Distribution Model:** Internal company APK distribution (`app/build/outputs/apk/release/lakemark-release-v4.apk`, Play Store–free). **Do not upload to Google Play Store.**
+**Distribution Model:** Internal company APK distribution (`app/build/outputs/apk/release/lakemark-v3.4.7.apk`, Play Store–free). **Do not upload to Google Play Store.**
 
 ---
 
@@ -26,9 +26,9 @@ Lakemark distributes full, identically signed APKs for both fresh installations 
 Every production APK **must** be signed with the same production release keystore (`KEYSTORE_PATH` / `my-upload-key.jks`, alias `upload`) so devices upgrade in place without uninstalling:
 
 1. Extract the release keystore's **SHA-1** and **SHA-256** fingerprints and register them in **Firebase Console → Project Settings → Your apps (`com.aistudio.applet.kphrxs`)**.
-2. Verify the built APK (`app/build/outputs/apk/release/lakemark-release-v4.apk`) with `apksigner`:
+2. Verify the built APK (`app/build/outputs/apk/release/lakemark-v3.4.7.apk`) with `apksigner`:
    ```powershell
-   apksigner verify --verbose --print-certs app/build/outputs/apk/release/lakemark-release-v4.apk
+   apksigner verify --verbose --print-certs app/build/outputs/apk/release/lakemark-v3.4.7.apk
    ```
 
 ---
@@ -55,13 +55,13 @@ Every production APK **must** be signed with the same production release keystor
 
 While on the Firebase **Spark (Free)** plan (before Firebase Storage is initialized), use **GitHub Releases** as the zero-HTML-redirect HTTPS APK host:
 
-1. Build and sign the new APK (`versionCode` incremented, signed with the **same** release keystore) → output at `app/build/outputs/apk/release/lakemark-release-v4.apk`.
-2. In your GitHub repository, go to **Releases → Draft a new release**, create a tag (e.g. `v3.4.7`), attach `lakemark-release-v4.apk`, and click **Publish release**.
+1. Build and sign the new APK (`versionCode` incremented, signed with the **same** release keystore) → output at `app/build/outputs/apk/release/lakemark-v3.4.7.apk`.
+2. In your GitHub repository, go to **Releases → Draft a new release**, create a tag (e.g. `v3.4.7`), attach `lakemark-v3.4.7.apk`, and click **Publish release**.
 3. Right-click the attached `.apk` asset under **Assets** and copy its direct HTTPS URL:
-   `https://github.com/<username>/lakemark-app/releases/download/v3.4.7/lakemark-release-v4.apk`
+   `https://github.com/<username>/lakemark-app/releases/download/v3.4.7/lakemark-v3.4.7.apk`
 4. Open Lakemark as the authorized Manager (`abebaw4040@gmail.com`) → **Manage → Alerts → Release Update & Delivery** and enter:
    - **Version name** and **Version code**
-   - **APK download URL** (`https://github.com/.../releases/download/.../lakemark-release-v4.apk`)
+   - **APK download URL** (`https://github.com/.../releases/download/.../lakemark-v3.4.7.apk`)
    - **APK SHA-256 (optional)**
    - **Release notes**
 5. Tap **Publish & notify users** to update `/app_config/release` and broadcast the `app_update` notification (with **Update Now**) to active devices.
@@ -87,16 +87,24 @@ Upgrading in place (via **Update Now** or `adb install -r`) preserves all user a
 ```powershell
 adb devices
 adb shell dumpsys package com.aistudio.applet.kphrxs | Select-String "versionCode|versionName"
-adb install -r app/build/outputs/apk/release/lakemark-release-v4.apk
+adb install -r app/build/outputs/apk/release/lakemark-v3.4.7.apk
 adb shell dumpsys package com.aistudio.applet.kphrxs | Select-String "versionCode|versionName"
 ```
 > **Do NOT run `adb uninstall com.aistudio.applet.kphrxs`** before upgrading, as uninstalling deletes local auth sessions, DataStore preferences, and `deviceId`.
 
-### B. In-Place Upgrade Directly on Device
-1. Tap **Update Now** on the push notification or inside **Settings → Check for Updates** (or open the downloaded APK in **Files**).
-2. Allow **Install unknown apps** for Lakemark if prompted on Android 8+.
-3. Confirm **Update** (or **Install** on clean devices).
-4. Launch **Lakemark** and verify the version in **Settings** (`top_settings_button` → footer).
+### B. In-Place Upgrade Directly on Device (One-Time Permission)
+Android 8.0+ requires every app that installs APK updates outside Google Play to receive a **one-time** user grant (**Allow from this source**):
+
+1. Tap **Update Now** on the notification or inside **Settings → Check for Updates**.
+2. **First update on a device only:** Tap **Allow app installs** to open Android's **Install unknown apps** screen, toggle **Allow from this source → ON** (on Xiaomi/Redmi/POCO HyperOS/MIUI, check *"I'm aware of the possible risks..."* and tap **OK** after the countdown), then press **Back**. Lakemark immediately resumes the installer.
+3. Confirm **Update** (do **not** uninstall first).
+4. **All future updates:** Because **Allow from this source** stays enabled across in-place upgrades and normal daily use, future updates skip the warning screen and go straight to **Update**.
+
+### C. Manufacturer Notes & Legacy Certificate Migration
+- **Xiaomi / Redmi / POCO (MIUI / HyperOS):** Shows a 10-second `Danger` confirmation on first-time `Allow from this source`; set Battery Saver to **No restrictions** and enable **Autostart** if background alerts are throttled. `AlertAudioAndNotificationManager` routes foreground audio through `USAGE_MEDIA` automatically when MIUI mutes notification streams.
+- **Samsung / Google Pixel:** Standard one-time **Allow from this source** toggle; no extra countdown gate. Disable "Unused app settings" / battery optimization if the device is idle for months.
+- **OPPO / OnePlus (ColorOS / OxygenOS), Vivo (FuntouchOS), Tecno / Infinix (HiOS / XOS):** Standard one-time **Install unknown apps** toggle. Allow background running / disable aggressive Phone Master or iManager auto-optimization so real-time alerts stay responsive.
+- **Legacy Debug APKs (`v12`–`v18` in `ARCHIVE/BACKUP/`):** Those historical builds used `CN=Android Debug` (`53:cd:37:77...`) instead of `my-upload-key.jks` (`2b:2d:58:5f...`). Android blocks upgrading across mismatched certificates (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`). Any phone still running `v12`–`v18` must uninstall that debug build **once** before installing `lakemark-v3.4.7.apk`; all Firestore operational data, staff accounts, and roles remain intact in Cloud Firestore, and all subsequent `my-upload-key.jks` releases upgrade in place.
 
 ### C. Reproducing a Production Release Build
 ```powershell

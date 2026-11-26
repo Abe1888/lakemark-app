@@ -166,8 +166,13 @@ class MainActivity : ComponentActivity() {
         val extraOrderStatus = intent.getStringExtra(PushDeepLink.EXTRA_ORDER_STATUS)
             ?: intent.getStringExtra("orderStatus")
             ?: intent.getStringExtra("status")
-        val extraApkUrl = intent.getStringExtra(PushDeepLink.EXTRA_APK_URL)
-            ?: intent.getStringExtra("apkUrl")
+        val isExternalBrowsable = intent.action == Intent.ACTION_VIEW && intent.data != null
+        val extraApkUrl = if (isExternalBrowsable) {
+            null
+        } else {
+            intent.getStringExtra(PushDeepLink.EXTRA_APK_URL)
+                ?: intent.getStringExtra("apkUrl")
+        }
 
         val extraOpenSheet: Boolean? = when {
             intent.hasExtra(PushDeepLink.EXTRA_OPEN_SHEET) ->
@@ -183,7 +188,7 @@ class MainActivity : ComponentActivity() {
             else -> null
         }
 
-        val deepLink = PushDeepLink.fromQueryAndExtras(
+        val parsedDeepLink = PushDeepLink.fromQueryAndExtras(
             uriString = intent.dataString,
             extraTab = extraTab,
             extraOrderId = extraOrderId,
@@ -193,6 +198,11 @@ class MainActivity : ComponentActivity() {
             extraOrderStatus = extraOrderStatus,
             extraApkUrl = extraApkUrl,
         )
+        val deepLink = if (isExternalBrowsable && parsedDeepLink != null) {
+            parsedDeepLink.copy(apkUrl = "")
+        } else {
+            parsedDeepLink
+        }
         if (deepLink != null) {
             InAppPushCoordinator.enqueueDeepLink(deepLink)
         }
@@ -634,10 +644,11 @@ private fun LakemarkMainScaffold(
                                 onChangePlace = { viewModel.selectTab(AppTab.FLOOR) },
                                 onSelectCategory = viewModel::selectCategory,
                                 onSearchChange = viewModel::updateSearchQuery,
-                                onAddToCart = viewModel::addToCart,
+                                onAddToCart = viewModel::addToCartAndOpenOrder,
                                 onDecrementCart = viewModel::decrementCartItem,
                                 onToggleSaved = viewModel::toggleSavedItem,
                                 onOpenSaved = { viewModel.selectTab(AppTab.SAVED) },
+                                onOpenCart = viewModel::openCartSheet,
                                 modifier = Modifier.fillMaxSize(),
                             )
                             AppTab.SAVED -> SavedScreen(
@@ -729,48 +740,6 @@ private fun LakemarkMainScaffold(
                 )
             }
 
-            if ((uiState.currentTab == AppTab.MENU || uiState.currentTab == AppTab.SAVED) && uiState.cartItemCount > 0) {
-                Button(
-                    onClick = viewModel::openCartSheet,
-                    shape = RoundedCornerShape(999.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = palette.acc,
-                        contentColor = palette.onAcc,
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 10.dp),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .widthIn(max = 600.dp)
-                        .fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
-                        .padding(start = 12.dp, end = 12.dp, bottom = 84.dp)
-                        .height(52.dp)
-                        .testTag("view_order_fab"),
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.ShoppingBag,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Text(
-                            text = s.format(
-                                "menu_view_order",
-                                "count" to uiState.cartItemCount,
-                                "total" to formatEtb(uiState.cartSubtotal),
-                            ),
-                            fontFamily = font,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 15.sp,
-                        )
-                    }
-                }
-            }
-
             FloatingPillNavBar(
                 tabs = bottomBarTabs,
                 selectedTab = uiState.currentTab,
@@ -786,7 +755,9 @@ private fun LakemarkMainScaffold(
                 CartCheckoutSheet(
                     uiState = uiState,
                     onClose = viewModel::closeCartSheet,
+                    onAddItem = { viewModel.addToCart(it) },
                     onRemoveItem = viewModel::decrementCartItem,
+                    onClearCart = viewModel::clearCart,
                     onChangePlace = {
                         viewModel.closeCartSheet()
                         viewModel.selectTab(AppTab.FLOOR)

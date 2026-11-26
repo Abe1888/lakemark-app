@@ -61,7 +61,7 @@ function hasAdminCredentials() {
 
 function getDb() {
   if (!hasAdminCredentials()) {
-    const err = new Error("Backend Firebase credentials are not configured. Add FIREBASE_SERVICE_ACCOUNT_JSON in Render Environment Variables.");
+    const err = new Error("Backend Firebase credentials are not configured.");
     err.statusCode = 503;
     throw err;
   }

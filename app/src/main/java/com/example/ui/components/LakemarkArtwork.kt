@@ -65,9 +65,9 @@ fun LakemarkFlameEmblem(
         contentAlignment = Alignment.Center,
     ) {
         Image(
-            painter = painterResource(R.drawable.lakemark_logo),
+            painter = painterResource(R.drawable.lakemark_badge),
             contentDescription = null,
-            contentScale = ContentScale.Crop,
+            contentScale = ContentScale.Fit,
             modifier = Modifier.fillMaxSize(),
         )
     }

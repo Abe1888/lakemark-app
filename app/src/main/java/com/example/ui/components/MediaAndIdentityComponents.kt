@@ -624,8 +624,8 @@ fun AppUpdateAvailableDialog(
                     is ApkDownloadState.NeedsInstallPermission -> {
                         Text(
                             text = s.get(
-                                "notif_update_allow_install",
-                                "Allow Lakemark to install verified updates in Android Settings.",
+                                "notif_update_allow_install_detail",
+                                "Android asks once per device to allow Lakemark to install its own signed updates. Tap below and enable 'Allow from this source' — future updates will install directly without repeating this warning.",
                             ),
                             fontFamily = font,
                             fontWeight = FontWeight.SemiBold,

@@ -31,10 +31,11 @@ enum class UserRole(
         }
 
     val bottomBarTabs: List<AppTab>
-        get() = if (this == MANAGER) {
-            allowedTabs.filter { it != AppTab.MENU && it != AppTab.SAVED }
-        } else {
-            allowedTabs
+        get() = when (this) {
+            MANAGER -> listOf(AppTab.HOME, AppTab.MANAGE)
+            KITCHEN -> listOf(AppTab.HOME, AppTab.KITCHEN)
+            CASHIER, DELIVERY -> listOf(AppTab.HOME, AppTab.ORDERS)
+            CUSTOMER, RECEPTION, WAITER -> listOf(AppTab.MENU, AppTab.ORDERS)
         }
 
     val directActions: List<OrderStatus>

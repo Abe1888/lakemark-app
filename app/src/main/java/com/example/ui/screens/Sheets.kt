@@ -99,6 +99,7 @@ import kotlin.math.roundToInt
 private fun FullScreenSheetScaffold(
     title: String,
     onClose: () -> Unit,
+    trailingAction: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     val palette = LocalBrandPalette.current
@@ -149,7 +150,11 @@ private fun FullScreenSheetScaffold(
                     color = palette.plum,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
+                if (trailingAction != null) {
+                    trailingAction()
+                }
             }
             Box(
                 modifier = Modifier
@@ -166,15 +171,21 @@ private fun FullScreenSheetScaffold(
 fun CartCheckoutSheet(
     uiState: LakemarkUiState,
     onClose: () -> Unit,
+    onAddItem: (com.example.data.model.MenuItem) -> Unit = {},
     onRemoveItem: (String) -> Unit,
+    onClearCart: () -> Unit = {},
     onChangePlace: () -> Unit,
     onPlaceOrder: (customerName: String, phoneOrLocation: String, note: String, onError: (String) -> Unit) -> Unit,
 ) {
     val palette = LocalBrandPalette.current
     val s = LocalAppStrings.current
     val font = lakemarkFont()
-    val place = uiState.selectedPlace
-    var phoneOrLocation by remember(place?.location) { mutableStateOf("") }
+    val place = uiState.selectedPlace ?: com.example.data.model.PlaceSelection(
+        type = OrderType.DINE,
+        location = "Table 1",
+        label = "Table 1",
+    )
+    var phoneOrLocation by remember(place.location) { mutableStateOf("") }
     var customerName by remember(uiState.activeRole, uiState.currentUser) {
         mutableStateOf(
             if (uiState.activeRole == UserRole.CUSTOMER) uiState.currentUser?.name.orEmpty() else ""
@@ -183,7 +194,40 @@ fun CartCheckoutSheet(
     var specialNote by remember { mutableStateOf("") }
     var validationError by remember { mutableStateOf("") }
 
-    FullScreenSheetScaffold(title = s.get("cart_title", "Your Order"), onClose = onClose) {
+    FullScreenSheetScaffold(
+        title = s.get("cart_title", "Your Order"),
+        onClose = onClose,
+        trailingAction = {
+            if (uiState.cart.isNotEmpty()) {
+                Surface(
+                    onClick = onClearCart,
+                    shape = RoundedCornerShape(999.dp),
+                    color = palette.alt,
+                    modifier = Modifier.testTag("cart_clear_button"),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.DeleteOutline,
+                            contentDescription = null,
+                            tint = palette.text,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(
+                            text = if (s.language == AppLanguage.AM) "አጽዳ" else "Clear",
+                            fontFamily = font,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.5.sp,
+                            color = palette.text,
+                        )
+                    }
+                }
+            }
+        },
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -205,7 +249,7 @@ fun CartCheckoutSheet(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "${cartItem.quantity}× ${s.dishName(cartItem.menuItem)}",
+                                text = s.dishName(cartItem.menuItem),
                                 fontFamily = font,
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 15.sp,
@@ -219,84 +263,107 @@ fun CartCheckoutSheet(
                                 color = palette.mut,
                             )
                         }
-                        Button(
-                            onClick = { onRemoveItem(cartItem.menuItem.id) },
-                            shape = RoundedCornerShape(999.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = palette.alt,
-                                contentColor = palette.text,
-                            ),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                            modifier = Modifier.height(38.dp),
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(palette.alt)
+                                .padding(3.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(palette.surface)
+                                    .clickable { onRemoveItem(cartItem.menuItem.id) },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "−",
+                                    fontFamily = font,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 17.sp,
+                                    color = palette.text,
+                                )
+                            }
                             Text(
-                                text = if (s.language == AppLanguage.AM) "ቀንስ" else "Remove",
-                                fontFamily = font,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.5.sp,
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (place != null) {
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = palette.surface,
-                    shadowElevation = 2.dp,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = place.label,
+                                text = cartItem.quantity.toString(),
                                 fontFamily = font,
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize = 15.sp,
+                                fontSize = 14.sp,
                                 color = palette.text,
+                                modifier = Modifier.padding(horizontal = 6.dp),
                             )
-                            Text(
-                                text = s.orderTypeLabel(place.type),
-                                fontFamily = font,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 12.5.sp,
-                                color = palette.mut,
-                            )
-                        }
-                        Button(
-                            onClick = onChangePlace,
-                            shape = RoundedCornerShape(999.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = palette.alt,
-                                contentColor = palette.text,
-                            ),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                            modifier = Modifier.height(38.dp),
-                        ) {
-                            Text(
-                                text = s.get("place_change", "Change"),
-                                fontFamily = font,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.5.sp,
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(palette.acc)
+                                    .clickable { onAddItem(cartItem.menuItem) },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "+",
+                                    fontFamily = font,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 17.sp,
+                                    color = palette.onAcc,
+                                )
+                            }
                         }
                     }
                 }
-            } else {
-                Text(
-                    text = s.get("cart_empty_spot", "Choose where this order starts first."),
-                    fontFamily = font,
-                    fontSize = 13.sp,
-                    color = palette.mut,
-                )
             }
 
-            if (place?.type == OrderType.OUT) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = palette.surface,
+                shadowElevation = 2.dp,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = place.label,
+                            fontFamily = font,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 15.sp,
+                            color = palette.text,
+                        )
+                        Text(
+                            text = s.orderTypeLabel(place.type),
+                            fontFamily = font,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 12.5.sp,
+                            color = palette.mut,
+                        )
+                    }
+                    Button(
+                        onClick = onChangePlace,
+                        shape = RoundedCornerShape(999.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = palette.alt,
+                            contentColor = palette.text,
+                        ),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                        modifier = Modifier.height(38.dp),
+                    ) {
+                        Text(
+                            text = s.get("place_change", "Change"),
+                            fontFamily = font,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.5.sp,
+                        )
+                    }
+                }
+            }
+
+            if (place.type == OrderType.OUT) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = s.get("cart_takeaway_phone", "Phone number"),

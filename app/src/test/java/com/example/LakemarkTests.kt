@@ -143,14 +143,14 @@ class LakemarkTests {
     @Test
     fun `role permissions and order state transitions enforce zero-trust workflow`() {
         assertEquals(listOf(AppTab.HOME, AppTab.KITCHEN, AppTab.SAVED), UserRole.KITCHEN.allowedTabs)
-        assertEquals(listOf(AppTab.HOME, AppTab.KITCHEN, AppTab.SAVED), UserRole.KITCHEN.bottomBarTabs)
+        assertEquals(listOf(AppTab.HOME, AppTab.KITCHEN), UserRole.KITCHEN.bottomBarTabs)
         assertEquals(
             listOf(AppTab.HOME, AppTab.FLOOR, AppTab.MENU, AppTab.SAVED, AppTab.ORDERS, AppTab.KITCHEN, AppTab.MANAGE),
             UserRole.MANAGER.allowedTabs,
         )
-        assertEquals(listOf(AppTab.HOME, AppTab.FLOOR, AppTab.ORDERS, AppTab.KITCHEN, AppTab.MANAGE), UserRole.MANAGER.bottomBarTabs)
+        assertEquals(listOf(AppTab.HOME, AppTab.MANAGE), UserRole.MANAGER.bottomBarTabs)
         UserRole.entries.forEach { role ->
-            assertTrue("${role.key} footer must stay <= 5 items", role.bottomBarTabs.size <= 5)
+            assertEquals("${role.key} footer must stay 2 items", 2, role.bottomBarTabs.size)
         }
         assertEquals(listOf(OrderStatus.CONFIRMED, OrderStatus.CANCELLED), OrderStatus.NEW.nextStatuses)
         assertEquals(emptyList<OrderStatus>(), OrderStatus.DONE.nextStatuses)

@@ -30,7 +30,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.TwoWheeler
+import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -80,103 +80,18 @@ fun MenuScreen(
     onDecrementCart: (String) -> Unit,
     onToggleSaved: (MenuItem) -> Unit = {},
     onOpenSaved: () -> Unit = {},
+    onOpenCart: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalBrandPalette.current
     val s = LocalAppStrings.current
     val font = lakemarkFont()
-    val place = uiState.selectedPlace
+    val place = uiState.selectedPlace ?: com.example.data.model.PlaceSelection(
+        type = com.example.data.model.OrderType.DINE,
+        location = "Table 1",
+        label = "Table 1",
+    )
     val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-
-    if (place == null) {
-        val orders = uiState.orders
-        val totalFree = remember(orders) {
-            FloorZone.entries.sumOf { zone ->
-                val occupied = zone.locations.count { loc ->
-                    orders.any { it.typeEnum == zone.orderType && it.location == loc && !it.statusEnum.isTerminal }
-                }
-                (zone.capacity - occupied).coerceAtLeast(0)
-            }
-        }
-
-        LazyColumn(
-            modifier = modifier,
-            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 4.dp, bottom = navBottom + 112.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            item {
-                HeroSection(
-                    pillText = s.get("menu_pill", "Menu"),
-                    bigNumber = totalFree,
-                    unitLabel = s.get("floor_legend_free", "Free").lowercase(),
-                    subtitle = s.get("menu_choose_spot", "Choose a room or table to begin"),
-                )
-            }
-            item {
-                AreaOccupancyRow(
-                    orders = orders,
-                    onOpenArea = onStartArea,
-                )
-            }
-            item {
-                Surface(
-                    onClick = { onStartArea("out") },
-                    shape = RoundedCornerShape(24.dp),
-                    color = Color.Transparent,
-                    shadowElevation = 8.dp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(Brush.linearGradient(listOf(palette.gradTop, palette.gradBottom)))
-                        .testTag("takeaway_cta_card"),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.14f)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.TwoWheeler,
-                                contentDescription = null,
-                                tint = palette.acc,
-                                modifier = Modifier.size(24.dp),
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = s.get("order_type_out", "Takeaway / delivery"),
-                                fontFamily = font,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 17.sp,
-                                color = palette.onPlum,
-                            )
-                            Text(
-                                text = s.get("prompt_phone_number", "Phone number"),
-                                fontFamily = font,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 12.5.sp,
-                                color = palette.onPlum.copy(alpha = 0.78f),
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = null,
-                            tint = palette.onPlum,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
-                }
-            }
-        }
-        return
-    }
 
     val categories = remember(uiState.menuItems) {
         val dynamic = uiState.menuItems.map { it.category }.distinct()
@@ -225,10 +140,10 @@ fun MenuScreen(
                         color = palette.plum,
                     )
                     Surface(
-                        onClick = onOpenSaved,
+                        onClick = onOpenCart,
                         shape = RoundedCornerShape(999.dp),
-                        color = palette.alt,
-                        modifier = Modifier.testTag("menu_open_saved_button"),
+                        color = if (uiState.cartItemCount > 0) palette.acc else palette.alt,
+                        modifier = Modifier.testTag("menu_open_cart_button"),
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
@@ -236,17 +151,17 @@ fun MenuScreen(
                             horizontalArrangement = Arrangement.spacedBy(5.dp),
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.Bookmark,
-                                contentDescription = null,
-                                tint = palette.plum,
-                                modifier = Modifier.size(15.dp),
+                                imageVector = Icons.Filled.ShoppingBag,
+                                contentDescription = s.get("cart_title", "Your Order"),
+                                tint = if (uiState.cartItemCount > 0) palette.onAcc else palette.plum,
+                                modifier = Modifier.size(16.dp),
                             )
                             Text(
-                                text = s.format("manage_menu_view_saved", "n" to uiState.savedItems.size),
+                                text = uiState.cartItemCount.toString(),
                                 fontFamily = font,
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 12.sp,
-                                color = palette.plum,
+                                color = if (uiState.cartItemCount > 0) palette.onAcc else palette.plum,
                             )
                         }
                     }
@@ -537,79 +452,24 @@ private fun MenuDishCard(
                 }
 
                 if (item.available) {
-                    if (qty > 0) {
-                        Row(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(8.dp)
-                                .clip(RoundedCornerShape(999.dp))
-                                .background(palette.plum)
-                                .padding(3.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .clickable(onClick = onDecrement)
-                                    .semantics { contentDescription = "Remove one $dishTitle" },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    text = "−",
-                                    fontFamily = font,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 18.sp,
-                                    color = palette.onPlum,
-                                )
-                            }
-                            Text(
-                                text = qty.toString(),
-                                fontFamily = font,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 14.sp,
-                                color = palette.onPlum,
-                                modifier = Modifier.padding(horizontal = 6.dp),
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(palette.acc)
-                                    .clickable(onClick = onAdd)
-                                    .semantics { contentDescription = "Add one $dishTitle" },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    text = "+",
-                                    fontFamily = font,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 18.sp,
-                                    color = palette.onAcc,
-                                )
-                            }
-                        }
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(8.dp)
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(palette.acc)
-                                .clickable(onClick = onAdd)
-                                .semantics { contentDescription = "Add $dishTitle" }
-                                .testTag("menu_add_${item.id}"),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Add,
-                                contentDescription = null,
-                                tint = palette.onAcc,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp)
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(palette.acc)
+                            .clickable(onClick = onAdd)
+                            .semantics { contentDescription = "Add $dishTitle" }
+                            .testTag("menu_add_${item.id}"),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = null,
+                            tint = palette.onAcc,
+                            modifier = Modifier.size(20.dp),
+                        )
                     }
                 }
             }
